@@ -1,16 +1,19 @@
 import { Stack } from "expo-router";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AdaptiveLayout } from "./components/AdaptiveLayout";
 import "./global.css";
 
 export default function RootLayout() {
   return (
-    <AdaptiveLayout>
-      <Stack
-        screenOptions={{
-          headerShown: false, // POS apps usually handle their own headers
-          contentStyle: { backgroundColor: "transparent" },
-        }}
-      />
-    </AdaptiveLayout>
+    <SafeAreaProvider>
+      <AdaptiveLayout>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
+          }}
+        />
+      </AdaptiveLayout>
+    </SafeAreaProvider>
   );
 }
