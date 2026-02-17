@@ -1,25 +1,20 @@
+import React from "react";
+import { View, Text, Pressable, TouchableOpacity } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useColorScheme } from "nativewind";
-import React, { useState } from "react";
-import { Pressable, TouchableOpacity, View, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useColorScheme } from "nativewind";
+import { useRouter } from "expo-router";
+import { useSidebar, SidebarProvider } from "../context/SidebarContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { ThemeToggle } from "./ThemeToggle";
-import { useRouter } from "expo-router";
-
-interface LayoutProps {
-  children: React.ReactNode;
-}
 
 export const AdaptiveLayout = ({ children }: LayoutProps) => {
   const device = useBreakpoint();
 
   return (
-    <View className="flex-1 bg-white dark:bg-gray-900">
-      {device === "mobile" && <MobileLayout>{children}</MobileLayout>}
-      {device === "tablet" && <TabletLayout>{children}</TabletLayout>}
-      {device === "desktop" && <DesktopLayout>{children}</DesktopLayout>}
-    </View>
+    <SidebarProvider>
+      <LayoutContent>{children}</LayoutContent>
+    </SidebarProvider>
   );
 };
 
@@ -27,9 +22,6 @@ const MobileLayout = ({ children }: LayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { colorScheme, toggleColorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const iconColor = colorScheme === "dark" ? "#fff" : "#111";
 
   return (
     <View className="flex-1">
@@ -231,7 +223,7 @@ const MobileLayout = ({ children }: LayoutProps) => {
   );
 };
 
-const TabletLayout = ({ children }: LayoutProps) => {
+const NavItems = ({ closeSidebar }: { closeSidebar: () => void }) => {
   const router = useRouter();
   const { colorScheme, toggleColorScheme } = useColorScheme();
   const iconColor = colorScheme === "dark" ? "#fff" : "#111";
@@ -487,10 +479,23 @@ const DesktopLayout = ({ children }: LayoutProps) => {
           </View>
         </View>
       </View>
-
-      <View className="flex-1 bg-gray-50 dark:bg-gray-800">
-        <View className="max-w-7xl mx-auto w-full h-full">{children}</View>
+      <View className="pt-4 pb-4 border-t border-gray-100 dark:border-gray-800">
+        <ThemeToggle />
       </View>
     </View>
   );
 };
+
+const SidebarBtn = ({ icon, label, onPress, isMCI = false }: any) => (
+  <Pressable
+    onPress={onPress}
+    className="flex-row items-center p-4 mb-2 rounded-2xl bg-gray-50 dark:bg-gray-800 active:bg-gray-100"
+  >
+    {isMCI ? (
+      <MaterialCommunityIcons name={icon} size={22} color="green" />
+    ) : (
+      <Ionicons name={icon} size={22} color="green" />
+    )}
+    <Text className="ml-3 font-semibold dark:text-white">{label}</Text>
+  </Pressable>
+);
