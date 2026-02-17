@@ -13,7 +13,7 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: "transparent" },
           }}
         >
-          <Stack.Screen name="Cashier" />
+          <Stack.Screen name="Products" />
           <Stack.Screen name="OrderHistory" />
         </Stack>
       </AdaptiveLayout>
