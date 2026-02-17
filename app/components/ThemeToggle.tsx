@@ -17,7 +17,7 @@ export function ThemeToggle() {
           size={20}
           color={isDark ? "#F59E0B" : "#6366F1"}
         />
-        <Text className="ml-5 text-slate-900 dark:text-slate-100 font-medium">
+        <Text className="ml-5 font-medium text-slate-900 dark:text-slate-100">
           {isDark ? "Dark Mode" : "Light Mode"}
         </Text>
       </View>

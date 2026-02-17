@@ -1,26 +1,25 @@
 import React, { useState, useMemo } from 'react';
 import { 
   View, Text, TextInput, ScrollView, TouchableOpacity, 
-  Image, SafeAreaView, useColorScheme, useWindowDimensions 
+  Image, useWindowDimensions 
 } from 'react-native';
-import { MaterialCommunityIcons, Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Stack } from 'expo-router';
+import { useSidebar } from '../context/SidebarContext'; 
+import { useColorScheme } from 'nativewind';
 
-// --- Types ---
-type Category = { id: number; name: string; count: number; icon: string; };
-type Product = { id: number; name: string; price: number; type: 'Veg' | 'Non Veg'; category: string; image: string; };
-type CartItem = Product & { quantity: number };
-
-// --- Expanded Mock Data ---
-const CATEGORIES: Category[] = [
-  { id: 1, name: 'All', count: 235, icon: 'apps' },
-  { id: 2, name: 'Breakfast', count: 19, icon: 'egg-outline' },
-  { id: 3, name: 'Soups', count: 6, icon: 'bowl-mix-outline' },
-  { id: 4, name: 'Pasta', count: 14, icon: 'noodles' },
-  { id: 5, name: 'Burgers', count: 13, icon: 'hamburger' },
+// --- MOCK DATA ---
+const CATEGORIES = [
+  { id: 1, name: 'All', icon: 'apps' },
+  { id: 2, name: 'Breakfast', icon: 'egg-outline' },
+  { id: 3, name: 'Soups', icon: 'bowl-mix-outline' },
+  { id: 4, name: 'Pasta', icon: 'noodles' },
+  { id: 5, name: 'Burgers', icon: 'hamburger' },
 ];
 
-const PRODUCTS: Product[] = [
-  { id: 1, name: 'Original Chess Meat Burger With Chips', price: 280, type: 'Non Veg', category: 'Burgers', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400' },
+const PRODUCTS = [
+  { id: 1, name: 'Original Cheese Meat Burger With Chips', price: 280, type: 'Non Veg', category: 'Burgers', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400' },
   { id: 2, name: 'Fresh Orange Juice With Basil Seed', price: 120, type: 'Veg', category: 'Breakfast', image: 'https://images.unsplash.com/photo-1547514701-42782101795e?w=400' },
   { id: 3, name: 'Meat Sushi Maki With Tuna', price: 350, type: 'Non Veg', category: 'All', image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400' },
   { id: 4, name: 'Tacos Salsa With Chickens Grilled', price: 220, type: 'Non Veg', category: 'All', image: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400' },
@@ -28,119 +27,116 @@ const PRODUCTS: Product[] = [
   { id: 6, name: 'Mushroom Cream Soup', price: 150, type: 'Veg', category: 'Soups', image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400' },
   { id: 7, name: 'Seafood Marinara Pasta', price: 320, type: 'Non Veg', category: 'Pasta', image: 'https://images.unsplash.com/photo-1563379091339-03b21bc4a4f8?w=400' },
   { id: 8, name: 'Double Bacon BBQ Burger', price: 310, type: 'Non Veg', category: 'Burgers', image: 'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=400' },
-  { id: 9, name: 'Tom Yum Goong Soup', price: 240, type: 'Non Veg', category: 'Soups', image: 'https://images.unsplash.com/photo-1548943487-a2e4e43b4853?w=400' },
-  { id: 10, name: 'Spaghetti Carbonara', price: 290, type: 'Non Veg', category: 'Pasta', image: 'https://images.unsplash.com/photo-1612874742237-6526221588e3?w=400' },
 ];
 
-export default function ProductsScreen() {
+export default function ProductScreen() {
+  const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const isDark = useColorScheme() === 'dark';
+  const { colorScheme } = useColorScheme();
+  const { openSidebar } = useSidebar();
+  const isDark = colorScheme === 'dark';
 
-  // --- Search & Filter State ---
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-
-  // --- Cart State ---
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // --- STATE ---
+  const [search, setSearch] = useState('');
+  const [activeCat, setActiveCat] = useState('All');
+  const [cart, setCart] = useState<any[]>([]);
   const [orderType, setOrderType] = useState('Dine in');
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  // --- Filtering Logic ---
-  const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter(p => {
-      const matchesCategory = activeCategory === 'All' || p.category === activeCategory;
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
-  }, [searchQuery, activeCategory]);
+  // --- LOGIC ---
+  const filtered = useMemo(() => 
+    PRODUCTS.filter(p => 
+      (activeCat === 'All' || p.category === activeCat) && 
+      p.name.toLowerCase().includes(search.toLowerCase())
+    )
+  , [search, activeCat]);
 
-  // --- Cart Logic ---
-  const addToCart = (product: Product) => {
+  const addToCart = (p: any) => {
+    if (selectionMode) return;
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      return existing 
-        ? prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)
-        : [...prev, { ...product, quantity: 1 }];
+      const exist = prev.find(i => i.id === p.id);
+      return exist ? prev.map(i => i.id === p.id ? {...i, qty: i.qty + 1} : i) : [...prev, {...p, qty: 1}];
     });
   };
 
+  // UPDATED: Decrement deletes entry if qty is 1
   const updateQty = (id: number, delta: number) => {
-    setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
+    setCart(prev => {
+      const item = prev.find(i => i.id === id);
+      if (item && item.qty === 1 && delta === -1) {
+        return prev.filter(i => i.id !== id); // Delete item
+      }
+      return prev.map(i => i.id === id ? { ...i, qty: i.qty + delta } : i);
+    });
   };
 
-  const totals = useMemo(() => {
-    const sub = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const tax = sub * 0.05;
-    return { sub, tax, total: sub + tax };
-  }, [cart]);
+  const toggleSelection = (id: number) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const deleteSelected = () => {
+    setCart(prev => prev.filter(item => !selectedIds.includes(item.id)));
+    setSelectedIds([]);
+    setSelectionMode(false);
+  };
+
+  const subtotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+  const tax = subtotal * 0.05;
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F4F7F4] dark:bg-gray-950">
+    <View className="flex-1 bg-[#F4F7F4] dark:bg-gray-950" style={{ paddingTop: insets.top }}>
+      <Stack.Screen options={{ headerShown: false }} />
+
       <View className={`flex-1 ${isLandscape ? 'flex-row' : 'flex-col'}`}>
         
         {/* --- MENU SECTION --- */}
         {!isExpanded && (
           <View className={`${isLandscape ? 'flex-[0.65]' : 'flex-1'} p-4`}>
             
-            {/* Header + SEARCH BAR */}
-            <View className="flex-row items-center mb-6 space-x-3">
-              <View className="flex-1 flex-row items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-3 shadow-sm border border-gray-100 dark:border-gray-700">
-                <Ionicons name="search" size={20} color="#9CA3AF" />
+            <View className="flex-row items-center mb-6 space-x-2">
+              <TouchableOpacity onPress={openSidebar} className="p-2">
+                <Ionicons name="menu" size={30} color={isDark ? "white" : "black"} />
+              </TouchableOpacity>
+
+              <View className="flex-row items-center flex-1 px-4 py-2 bg-white border border-gray-100 shadow-sm dark:bg-gray-800 rounded-2xl dark:border-gray-700">
+                <Ionicons name="search" size={18} color="#9CA3AF" />
                 <TextInput 
-                  placeholder="Search Product here..." 
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
+                  placeholder="Search products..." 
+                  value={search} onChangeText={setSearch}
                   placeholderTextColor="#9CA3AF"
-                  className="flex-1 ml-2 text-base text-gray-900 dark:text-white" 
+                  className="flex-1 h-10 ml-2 dark:text-white" 
                 />
               </View>
-              <TouchableOpacity className="p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                <Ionicons name="options-outline" size={24} color={isDark ? 'white' : 'black'} />
+
+              <TouchableOpacity className="p-3 bg-white border border-gray-100 dark:bg-gray-800 rounded-2xl dark:border-gray-700">
+                <Ionicons name="options-outline" size={20} color={isDark ? "white" : "black"} />
               </TouchableOpacity>
             </View>
 
-            {/* CATEGORY SELECTOR */}
-            <View className="mb-6 h-15">
+            <View className="h-16 mb-6">
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {CATEGORIES.map((cat) => (
+                {CATEGORIES.map(c => (
                   <TouchableOpacity 
-                    key={cat.id} 
-                    onPress={() => setActiveCategory(cat.name)}
-                    className={`mr-4 p-4 rounded-3xl w-28 items-center justify-center border shadow-sm ${
-                      activeCategory === cat.name 
-                      ? 'bg-[#D1E7D1] border-[#2D6A4F] dark:bg-[#1B4332]' 
-                      : 'bg-white border-gray-100 dark:bg-gray-800 dark:border-gray-700'
-                    }`}
+                    key={c.id} onPress={() => setActiveCat(c.name)}
+                    className={`mr-3 p-4 rounded-3xl w-24 items-center justify-center border ${activeCat === c.name ? 'bg-green-100 border-green-600 dark:bg-green-900/30' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}
                   >
-                    <MaterialCommunityIcons 
-                      name={cat.icon as any} 
-                      size={28} 
-                      color={activeCategory === cat.name ? '#2D6A4F' : '#9CA3AF'} 
-                    />
-                    <Text className={`font-bold mt-2 text-[11px] ${activeCategory === cat.name ? 'text-[#2D6A4F] dark:text-green-400' : 'text-gray-800 dark:text-gray-300'}`}>{cat.name}</Text>
-                    <Text className="text-gray-400 text-[10px]">{cat.count} Items</Text>
+                    <MaterialCommunityIcons name={c.icon as any} size={22} color={activeCat === c.name ? "green" : "gray"} />
+                    <Text className={`text-[10px] font-bold mt-1 ${activeCat === c.name ? 'text-green-800 dark:text-green-400' : 'text-gray-500'}`}>{c.name}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
 
-            {/* PRODUCT GRID */}
             <ScrollView showsVerticalScrollIndicator={false}>
               <View className="flex-row flex-wrap justify-between">
-                {filteredProducts.map(p => (
-                  <TouchableOpacity key={p.id} onPress={() => addToCart(p)} style={{ width: isLandscape ? '31%' : '48%' }} className="bg-white dark:bg-gray-800 p-2 rounded-3xl mb-4 shadow-sm">
-                    <Image source={{ uri: p.image }} className="w-full h-28 rounded-2xl" />
-                    <Text className="font-bold text-[11px] mt-2 dark:text-white" numberOfLines={2}>{p.name}</Text>
-                    <View className="flex-row justify-between items-center mt-2">
-                      <Text className="text-[#2D6A4F] font-bold text-sm">₱{p.price}</Text>
-                      <View className="flex-row items-center">
-                         <MaterialCommunityIcons name="leaf" size={12} color={p.type === 'Veg' ? 'green' : 'red'} />
-                         <Text className="text-[9px] text-gray-400 ml-1">{p.type}</Text>
-                      </View>
-                    </View>
+                {filtered.map(p => (
+                  <TouchableOpacity key={p.id} onPress={() => addToCart(p)} style={{ width: isLandscape ? '31%' : '48%' }} className="p-2 mb-4 bg-white shadow-sm dark:bg-gray-800 rounded-3xl">
+                    <Image source={{ uri: p.image }} className="w-full bg-gray-100 h-28 rounded-2xl" />
+                    <Text className="font-bold text-[11px] mt-2 dark:text-white" numberOfLines={1}>{p.name}</Text>
+                    <Text className="font-bold text-green-700">₱{p.price}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -149,72 +145,99 @@ export default function ProductsScreen() {
         )}
 
         {/* --- CART SECTION --- */}
-        <View className={`bg-white dark:bg-gray-900 ${isLandscape ? 'flex-[0.35] border-l' : isExpanded ? 'flex-1' : 'h-[50%]'}`}>
-          <View className="p-4 flex-row justify-between items-center border-b border-gray-50 dark:border-gray-800">
-            <Text className="text-lg font-bold dark:text-white">Current Order</Text>
-            {!isLandscape && (
-              <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
-                <Ionicons name={isExpanded ? "chevron-down" : "expand"} size={22} color="#2D6A4F" />
-              </TouchableOpacity>
+        <View className={`bg-white dark:bg-gray-900 ${isLandscape ? 'flex-[0.35] border-l border-gray-100 dark:border-gray-800' : isExpanded ? 'flex-1' : 'h-[45%] border-t border-gray-100 dark:border-gray-800'}`}>
+          
+          <View className={`flex-row items-center justify-between p-4 border-b ${selectionMode ? 'bg-red-50 dark:bg-red-900/20 border-red-200' : 'border-gray-50 dark:border-gray-800'}`}>
+            {selectionMode ? (
+              <>
+                <View className="flex-row items-center">
+                  <TouchableOpacity onPress={() => { setSelectionMode(false); setSelectedIds([]); }}>
+                    <Ionicons name="close" size={24} color="#ef4444" />
+                  </TouchableOpacity>
+                  <Text className="ml-3 text-lg font-bold text-red-600">{selectedIds.length} Selected</Text>
+                </View>
+                <TouchableOpacity onPress={deleteSelected} className="p-2 bg-red-500 shadow-md rounded-xl">
+                  <Feather name="trash-2" size={20} color="white" />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View>
+                  <Text className="text-lg font-bold dark:text-white">Current Order</Text>
+                  <Text className="text-xs text-gray-400">{cart.length} Items</Text>
+                </View>
+                {!isLandscape && (
+                  <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
+                    <Ionicons name={isExpanded ? "chevron-down" : "expand"} size={22} color="#009245" />
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
 
-          <View className="px-4 py-3">
-            <View className="flex-row bg-gray-100 dark:bg-gray-800 rounded-2xl p-1">
-              {['Dine in', 'Take Away'].map(type => (
+          <ScrollView className="flex-1 px-4 mt-4">
+            {cart.map(item => {
+              const isSelected = selectedIds.includes(item.id);
+              return (
                 <TouchableOpacity 
-                  key={type} 
-                  onPress={() => setOrderType(type)}
-                  className={`flex-1 py-2.5 rounded-xl items-center ${orderType === type ? 'bg-[#D1E7D1]' : ''}`}
+                  key={item.id}
+                  activeOpacity={0.8}
+                  onLongPress={() => { setSelectionMode(true); toggleSelection(item.id); }}
+                  onPress={() => selectionMode && toggleSelection(item.id)}
+                  className={`flex-row items-center p-3 mb-4 rounded-2xl border shadow-sm ${isSelected ? 'bg-red-50 border-red-300 dark:bg-red-900/10' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}
                 >
-                  <Text className={`text-xs font-bold ${orderType === type ? 'text-[#2D6A4F]' : 'text-gray-500'}`}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <ScrollView className="flex-1 px-4">
-            {cart.map(item => (
-              <View key={item.id} className="flex-row items-center p-3 mb-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                <Image source={{ uri: item.image }} className="w-14 h-14 rounded-xl" />
-                <View className="flex-1 ml-3">
-                  <Text className="text-[10px] font-bold dark:text-white" numberOfLines={1}>{item.name}</Text>
-                  <View className="flex-row items-center justify-between mt-2">
-                    <Text className="text-[#2D6A4F] font-bold text-xs">₱{item.price}</Text>
-                    <View className="flex-row items-center bg-gray-50 dark:bg-gray-700 rounded-full px-2">
-                      <TouchableOpacity onPress={() => updateQty(item.id, -1)}><Ionicons name="remove-circle-outline" size={18} color="#2D6A4F" /></TouchableOpacity>
-                      <Text className="mx-2 font-bold text-xs dark:text-white">{item.quantity}</Text>
-                      <TouchableOpacity onPress={() => updateQty(item.id, 1)}><Ionicons name="add-circle-outline" size={18} color="#2D6A4F" /></TouchableOpacity>
-                    </View>
-                    <Text className="font-bold text-xs dark:text-white">₱{(item.price * item.quantity).toFixed(2)}</Text>
+                  <View className="relative">
+                    <Image source={{ uri: item.image }} className="bg-gray-100 w-14 h-14 rounded-xl" />
+                    {isSelected && (
+                      <View className="absolute inset-0 items-center justify-center bg-red-500/20 rounded-xl">
+                        <Ionicons name="checkmark-circle" size={24} color="#ef4444" />
+                      </View>
+                    )}
                   </View>
-                </View>
-              </View>
-            ))}
+
+                  <View className="flex-1 ml-3">
+                    <Text className="font-bold text-[11px] dark:text-white" numberOfLines={1}>{item.name}</Text>
+                    <View className="flex-row items-center justify-between mt-1">
+                      {!selectionMode ? (
+                        <View className="flex-row items-center px-2 py-1 rounded-full bg-gray-50 dark:bg-gray-700">
+                          <TouchableOpacity onPress={() => updateQty(item.id, -1)}><Ionicons name="remove-circle-outline" size={20} color="#009245" /></TouchableOpacity>
+                          <Text className="mx-2 text-xs font-bold dark:text-white">{item.qty}X</Text>
+                          <TouchableOpacity onPress={() => updateQty(item.id, 1)}><Ionicons name="add-circle-outline" size={20} color="#009245" /></TouchableOpacity>
+                        </View>
+                      ) : (
+                        <Text className="text-[10px] text-gray-400 italic">Long-press to select</Text>
+                      )}
+                      <Text className="font-bold text-[#009245] text-xs">₱{(item.qty * item.price).toFixed(2)}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
-          {/* TALLY PART */}
-          <View className="p-4 bg-gray-50 dark:bg-gray-800 rounded-t-[40px] shadow-2xl">
-            <View className="flex-row justify-between mb-1">
-              <Text className="text-gray-400 text-xs">Sub Total</Text>
-              <Text className="font-bold text-xs dark:text-white">₱{totals.sub.toFixed(2)}</Text>
+          <View className="p-5 bg-gray-50 dark:bg-gray-800 rounded-t-[35px] border-t border-gray-100 dark:border-gray-700 shadow-2xl">
+            <View className="flex-row justify-between px-2 mb-1">
+              <Text className="text-xs font-semibold text-gray-400">Sub Total</Text>
+              <Text className="text-xs font-bold dark:text-white">₱{subtotal.toFixed(2)}</Text>
             </View>
-            <View className="flex-row justify-between mb-3">
-              <Text className="text-gray-400 text-xs">Tax 5%</Text>
-              <Text className="font-bold text-xs dark:text-white">₱{totals.tax.toFixed(2)}</Text>
+            <View className="flex-row justify-between px-2 mb-3">
+              <Text className="text-xs font-semibold text-gray-400">Tax (5%)</Text>
+              <Text className="text-xs font-bold dark:text-white">₱{tax.toFixed(2)}</Text>
             </View>
-            <View className="flex-row justify-between items-center py-2 border-t border-dashed border-gray-300">
+            <View className="flex-row items-center justify-between py-2 border-t border-gray-300 border-dashed dark:border-gray-600">
               <Text className="text-base font-bold dark:text-white">Total Amount</Text>
-              <Text className="text-lg font-extrabold text-[#2D6A4F]">₱{totals.total.toFixed(2)}</Text>
+              <Text className="text-xl font-extrabold text-[#009245]">₱{(subtotal + tax).toFixed(2)}</Text>
             </View>
-
-            <TouchableOpacity className="bg-[#009245] py-4 rounded-2xl items-center mt-4">
-              <Text className="text-white font-bold text-lg">Place Order</Text>
+            <TouchableOpacity 
+              disabled={cart.length === 0 || selectionMode}
+              className={`py-4 rounded-2xl items-center shadow-lg mt-2 ${ (cart.length === 0 || selectionMode) ? 'bg-gray-300 dark:bg-gray-700' : 'bg-[#009245]'}`}
+            >
+              <Text className="text-lg font-bold text-white">Place Order</Text>
             </TouchableOpacity>
           </View>
-        </View>
 
+        </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
