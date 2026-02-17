@@ -14,7 +14,6 @@ interface LayoutProps {
 export const AdaptiveLayout = ({ children }: LayoutProps) => {
   const device = useBreakpoint();
 
-  // Common wrapper for all layouts (e.g., background color)
   return (
     <View className="flex-1 bg-white dark:bg-gray-900">
       {device === "mobile" && <MobileLayout>{children}</MobileLayout>}
@@ -24,10 +23,9 @@ export const AdaptiveLayout = ({ children }: LayoutProps) => {
   );
 };
 
-// Simple Platform Shells
 const MobileLayout = ({ children }: LayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { colorScheme } = useColorScheme();
+  const { colorScheme, toggleColorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -35,8 +33,14 @@ const MobileLayout = ({ children }: LayoutProps) => {
 
   return (
     <View className="flex-1">
-      {/* Content wrapper with padding to avoid hamburger overlap */}
-      <View className="flex-1" style={{ paddingTop: insets.top + 60 }}>
+      {/* Content wrapper — padded top (header) AND bottom (system nav bar) */}
+      <View
+        className="flex-1"
+        style={{
+          paddingTop: insets.top + 60,
+          paddingBottom: insets.bottom,
+        }}
+      >
         {children}
       </View>
 
@@ -57,7 +61,6 @@ const MobileLayout = ({ children }: LayoutProps) => {
             />
           </Pressable>
 
-          {/* Spacer for future items like title or actions */}
           <View className="flex-1" />
         </View>
       </View>
@@ -77,12 +80,20 @@ const MobileLayout = ({ children }: LayoutProps) => {
           className="absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-900 z-50 shadow-2xl border-r border-gray-200 dark:border-gray-800"
           style={{ paddingTop: insets.top }}
         >
-          {/* Sidebar Header */}
-          <View className="flex-row justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800">
-            <View>{/* You can add a logo or title here */}</View>
+          {/* Sidebar Header with Logo and Close Button */}
+          <View className="flex-row justify-between items-center px-4 py-4 border-b border-gray-200 dark:border-gray-800">
+            <View className="flex-row items-center flex-1">
+              <View className="w-9 h-9 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center mr-3">
+                <Ionicons name="storefront" size={20} color="#fff" />
+              </View>
+              <Text className="text-gray-900 dark:text-white font-bold text-xl">
+                POS
+              </Text>
+            </View>
+
             <Pressable
               onPress={() => setIsSidebarOpen(false)}
-              className="p-2 rounded-lg bg-white dark:bg-gray-900 active:bg-gray-200 dark:active:bg-gray-700"
+              className="p-2 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
             >
               <Ionicons
                 name="close"
@@ -93,74 +104,126 @@ const MobileLayout = ({ children }: LayoutProps) => {
           </View>
 
           {/* Sidebar Content */}
-
-          <View className="flex-1 p-4">
+          <View className="flex-1 px-3 pt-6">
             <Pressable
-              className="p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-3"
+              className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
               onPress={() => {
-                router.push("/pages/ProductScreen");
+                router.push("/pages/CashierScreen");
                 setIsSidebarOpen(false);
               }}
             >
-              <View className="flex-row items-center">
-                <Ionicons
-                  name="cart-outline"
-                  size={20}
-                  color={iconColor}
-                  className="mr-2 dark:text-white"
-                />
-                <Text className="text-gray-900 dark:text-white font-medium">
-                  Products
-                </Text>
-              </View>
+              <Ionicons
+                name="cart-outline"
+                size={22}
+                color={iconColor}
+                className="mr-3"
+              />
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
+                Cashier
+              </Text>
             </Pressable>
 
-            {/* Order History */}
             <Pressable
-              className="p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-3"
+              className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
               onPress={() => {
                 router.push("/pages/OrderHistoryScreen");
                 setIsSidebarOpen(false);
               }}
             >
-              <View className="flex-row items-center">
-                <Ionicons
-                  name="time-outline"
-                  size={20}
-                  color={iconColor}
-                  className="mr-2 dark:text-white"
-                />
-                <Text className="text-gray-900 dark:text-white font-medium">
-                  Order History
-                </Text>
-              </View>
+              <Ionicons
+                name="time-outline"
+                size={22}
+                color={iconColor}
+                className="mr-3"
+              />
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
+                Order History
+              </Text>
             </Pressable>
 
-            {/* Analytics */}
             <Pressable
-              className="p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-3"
+              className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
               onPress={() => {
                 router.push("/pages/AnalyticsScreen");
                 setIsSidebarOpen(false);
               }}
             >
-              <View className="flex-row items-center">
-                <MaterialCommunityIcons
-                  name="chart-bar"
-                  size={20}
-                  color={iconColor}
-                  className="mr-2 dark:text-white"
-                />
-                <Text className="text-gray-900 dark:text-white font-medium">
-                  Analytics
-                </Text>
-              </View>
+              <MaterialCommunityIcons
+                name="chart-bar"
+                size={22}
+                color={iconColor}
+                className="mr-3"
+              />
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
+                Analytics
+              </Text>
             </Pressable>
           </View>
 
-          {/* Sidebar Footer with Theme Toggle */}
-          <View className="p-4 border-t border-gray-200 dark:border-gray-800">
-            <ThemeToggle />
+          {/* Sidebar Footer */}
+          <View
+            className="px-3"
+            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+          >
+            <Pressable
+              onPress={toggleColorScheme}
+              className="flex-row items-center px-3 py-3 mt-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+            >
+              <Ionicons
+                name={isDark ? "moon" : "sunny"}
+                size={22}
+                color={isDark ? "#F59E0B" : "#6366F1"}
+                className="mr-3"
+              />
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
+                {isDark ? "Dark Mode" : "Light Mode"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                router.push("/pages/SettingsScreen");
+                setIsSidebarOpen(false);
+              }}
+              className="flex-row items-center px-3 py-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+            >
+              <Ionicons
+                name="settings-outline"
+                size={22}
+                color={iconColor}
+                className="mr-3"
+              />
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
+                Settings
+              </Text>
+            </Pressable>
+
+            <View className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
+              <Pressable
+                onPress={() => {
+                  router.push("/pages/AccountScreen");
+                  setIsSidebarOpen(false);
+                }}
+                className="flex-row items-center px-3 py-2 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+              >
+                <View className="w-10 h-10 rounded-full bg-blue-500 dark:bg-blue-600 items-center justify-center mr-3">
+                  <Text className="text-white font-semibold text-base">JD</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-gray-900 dark:text-white font-semibold text-sm">
+                    John Doe
+                  </Text>
+                  <Text className="text-gray-500 dark:text-gray-400 text-xs">
+                    john@example.com
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={isDark ? "#9ca3af" : "#6b7280"}
+                />
+              </Pressable>
+            </View>
           </View>
         </View>
       )}
@@ -170,70 +233,127 @@ const MobileLayout = ({ children }: LayoutProps) => {
 
 const TabletLayout = ({ children }: LayoutProps) => {
   const router = useRouter();
-  const { colorScheme } = useColorScheme();
+  const { colorScheme, toggleColorScheme } = useColorScheme();
   const iconColor = colorScheme === "dark" ? "#fff" : "#111";
+  const isDark = colorScheme === "dark";
 
   return (
     <View className="flex-1 flex-row">
-      <View className="w-52 bg-white dark:bg-gray-900 h-full p-4 justify-between border-r border-gray-200 dark:border-gray-800">
-        <View className="flex-1 mt-10">
-          {/* Products */}
-          <Pressable
-            className="p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-3"
-            onPress={() => router.push("/pages/ProductScreen")}
-          >
+      <View className="w-64 bg-white dark:bg-gray-900 h-full px-3 py-4 justify-between border-r border-gray-200 dark:border-gray-800">
+        <View>
+          <View className="px-3 pb-4 mb-4 border-b border-gray-300 dark:border-gray-700">
             <View className="flex-row items-center">
+              <View className="w-9 h-9 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center mr-3">
+                <Ionicons name="storefront" size={20} color="#fff" />
+              </View>
+              <Text className="text-gray-900 dark:text-white font-bold text-xl">
+                POS
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-1">
+            <Pressable
+              className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+              onPress={() => router.push("/pages/CashierScreen")}
+            >
               <Ionicons
                 name="cart-outline"
-                size={20}
+                size={22}
                 color={iconColor}
                 className="mr-3"
               />
-              <Text className="text-gray-900 dark:text-white font-medium">
-                Products
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
+                Cashier
               </Text>
-            </View>
-          </Pressable>
+            </Pressable>
 
-          {/* Order History */}
-          <Pressable
-            className="p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-3"
-            onPress={() => router.push("/pages/OrderHistoryScreen")}
-          >
-            <View className="flex-row items-center">
+            <Pressable
+              className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+              onPress={() => router.push("/pages/OrderHistoryScreen")}
+            >
               <Ionicons
                 name="time-outline"
-                size={20}
+                size={22}
                 color={iconColor}
                 className="mr-3"
               />
-              <Text className="text-gray-900 dark:text-white font-medium">
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
                 Order History
               </Text>
-            </View>
-          </Pressable>
+            </Pressable>
 
-          {/* Analytics */}
-          <Pressable
-            className="p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-3"
-            onPress={() => router.push("/pages/AnalyticsScreen")}
-          >
-            <View className="flex-row items-center">
+            <Pressable
+              className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+              onPress={() => router.push("/pages/AnalyticsScreen")}
+            >
               <MaterialCommunityIcons
                 name="chart-bar"
-                size={20}
+                size={22}
                 color={iconColor}
                 className="mr-3"
               />
-              <Text className="text-gray-900 dark:text-white font-medium">
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
                 Analytics
               </Text>
-            </View>
-          </Pressable>
+            </Pressable>
+          </View>
         </View>
 
-        <View className="border-t border-gray-200 dark:border-gray-800 pt-4">
-          <ThemeToggle />
+        <View className="pt-3">
+          <Pressable
+            onPress={toggleColorScheme}
+            className="flex-row items-center px-3 py-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+          >
+            <Ionicons
+              name={isDark ? "moon" : "sunny"}
+              size={22}
+              color={isDark ? "#F59E0B" : "#6366F1"}
+              className="mr-3"
+            />
+            <Text className="text-gray-900 dark:text-white font-medium text-base">
+              {isDark ? "Dark Mode" : "Light Mode"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/pages/SettingsScreen")}
+            className="flex-row items-center px-3 py-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+          >
+            <Ionicons
+              name="settings-outline"
+              size={22}
+              color={iconColor}
+              className="mr-3"
+            />
+            <Text className="text-gray-900 dark:text-white font-medium text-base">
+              Settings
+            </Text>
+          </Pressable>
+
+          <View className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
+            <Pressable
+              onPress={() => router.push("/pages/AccountScreen")}
+              className="flex-row items-center px-3 py-2 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+            >
+              <View className="w-10 h-10 rounded-full bg-blue-500 dark:bg-blue-600 items-center justify-center mr-3">
+                <Text className="text-white font-semibold text-base">JD</Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-gray-900 dark:text-white font-semibold text-sm">
+                  John Doe
+                </Text>
+                <Text className="text-gray-500 dark:text-gray-400 text-xs">
+                  john@example.com
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={isDark ? "#9ca3af" : "#6b7280"}
+              />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -244,70 +364,127 @@ const TabletLayout = ({ children }: LayoutProps) => {
 
 const DesktopLayout = ({ children }: LayoutProps) => {
   const router = useRouter();
-  const { colorScheme } = useColorScheme();
+  const { colorScheme, toggleColorScheme } = useColorScheme();
   const iconColor = colorScheme === "dark" ? "#fff" : "#111";
+  const isDark = colorScheme === "dark";
 
   return (
     <View className="flex-1 flex-row">
-      <View className="w-64 bg-white dark:bg-gray-900 h-full p-4 justify-between border-r border-gray-200 dark:border-gray-800">
-        <View className="flex-1 mt-10">
-          {/* Products */}
-          <Pressable
-            className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg mb-3 hover:bg-gray-200"
-            onPress={() => router.push("/pages/ProductScreen")}
-          >
+      <View className="w-64 bg-white dark:bg-gray-900 h-full px-3 py-4 justify-between border-r border-gray-200 dark:border-gray-800">
+        <View>
+          <View className="px-3 pb-4 mb-4 border-b border-gray-300 dark:border-gray-700">
             <View className="flex-row items-center">
+              <View className="w-9 h-9 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center mr-3">
+                <Ionicons name="storefront" size={20} color="#fff" />
+              </View>
+              <Text className="text-gray-900 dark:text-white font-bold text-xl">
+                POS
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-1">
+            <Pressable
+              className="flex-row items-center px-3 py-3 mb-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+              onPress={() => router.push("/pages/CashierScreen")}
+            >
               <Ionicons
                 name="cart-outline"
                 size={22}
                 color={iconColor}
                 className="mr-3"
               />
-              <Text className="text-gray-900 dark:text-white font-medium text-lg">
-                Products
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
+                Cashier
               </Text>
-            </View>
-          </Pressable>
+            </Pressable>
 
-          {/* Order History */}
-          <Pressable
-            className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg mb-3 hover:bg-gray-200"
-            onPress={() => router.push("/pages/OrderHistoryScreen")}
-          >
-            <View className="flex-row items-center">
+            <Pressable
+              className="flex-row items-center px-3 py-3 mb-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+              onPress={() => router.push("/pages/OrderHistoryScreen")}
+            >
               <Ionicons
                 name="time-outline"
                 size={22}
                 color={iconColor}
                 className="mr-3"
               />
-              <Text className="text-gray-900 dark:text-white font-medium text-lg">
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
                 Order History
               </Text>
-            </View>
-          </Pressable>
+            </Pressable>
 
-          {/* Analytics */}
-          <Pressable
-            className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg mb-3 hover:bg-gray-200"
-            onPress={() => router.push("/pages/AnalyticsScreen")}
-          >
-            <View className="flex-row items-center">
+            <Pressable
+              className="flex-row items-center px-3 py-3 mb-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+              onPress={() => router.push("/pages/AnalyticsScreen")}
+            >
               <MaterialCommunityIcons
                 name="chart-bar"
                 size={22}
                 color={iconColor}
                 className="mr-3"
               />
-              <Text className="text-gray-900 dark:text-white font-medium text-lg">
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
                 Analytics
               </Text>
-            </View>
-          </Pressable>
+            </Pressable>
+          </View>
         </View>
 
-        <View className="border-t border-gray-200 dark:border-gray-800 pt-4">
-          <ThemeToggle />
+        <View className="pt-3">
+          <Pressable
+            onPress={toggleColorScheme}
+            className="flex-row items-center px-3 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+          >
+            <Ionicons
+              name={isDark ? "moon" : "sunny"}
+              size={22}
+              color={isDark ? "#F59E0B" : "#6366F1"}
+              className="mr-3"
+            />
+            <Text className="text-gray-900 dark:text-white font-medium text-base">
+              {isDark ? "Dark Mode" : "Light Mode"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/pages/SettingsScreen")}
+            className="flex-row items-center px-3 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+          >
+            <Ionicons
+              name="settings-outline"
+              size={22}
+              color={iconColor}
+              className="mr-3"
+            />
+            <Text className="text-gray-900 dark:text-white font-medium text-base">
+              Settings
+            </Text>
+          </Pressable>
+
+          <View className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
+            <Pressable
+              onPress={() => router.push("/pages/AccountScreen")}
+              className="flex-row items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+            >
+              <View className="w-10 h-10 rounded-full bg-blue-500 dark:bg-blue-600 items-center justify-center mr-3">
+                <Text className="text-white font-semibold text-base">JD</Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-gray-900 dark:text-white font-semibold text-sm">
+                  John Doe
+                </Text>
+                <Text className="text-gray-500 dark:text-gray-400 text-xs">
+                  john@example.com
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={isDark ? "#9ca3af" : "#6b7280"}
+              />
+            </Pressable>
+          </View>
         </View>
       </View>
 
