@@ -545,15 +545,15 @@ export default function OrderHistoryScreen() {
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-800">
       {/* ── Header ───────────────────────────────────────────────────────────── */}
-      <View className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-5 pt-6 pb-4">
+      <View className="px-5 pt-6 pb-4 bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
         <View className="flex-row items-end justify-between mb-4">
-          <Text className="text-gray-900 dark:text-white font-black text-2xl">
+          <Text className="text-2xl font-black text-gray-900 dark:text-white">
             Order History
           </Text>
         </View>
 
         {/* Search Bar */}
-        <View className="flex-row items-center bg-gray-100 dark:bg-gray-900 rounded-xl px-4 h-11 mb-3">
+        <View className="flex-row items-center px-4 mb-3 bg-gray-100 dark:bg-gray-900 rounded-xl h-11">
           <Ionicons
             name="search-outline"
             size={18}
@@ -567,7 +567,7 @@ export default function OrderHistoryScreen() {
             }}
             placeholder="Search by Order ID or Receipt No."
             placeholderTextColor={isDark ? "#4B5563" : "#9CA3AF"}
-            className="flex-1 ml-3 text-gray-900 dark:text-white text-sm"
+            className="flex-1 ml-3 text-sm text-gray-900 dark:text-white"
           />
           {search.length > 0 && (
             <Pressable
@@ -610,7 +610,7 @@ export default function OrderHistoryScreen() {
               {showFilters ? "Hide Filters" : "Filters"}
             </Text>
             {hasActiveFilters && (
-              <View className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400" />
+              <View className="w-2 h-2 bg-blue-600 rounded-full dark:bg-blue-400" />
             )}
           </Pressable>
 
@@ -663,9 +663,9 @@ export default function OrderHistoryScreen() {
 
       {/* ── Filter Panel ─────────────────────────────────────────────────────── */}
       {showFilters && (
-        <View className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-4">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+        <View className="px-4 py-4 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-700">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-xs font-bold tracking-widest text-gray-400 uppercase dark:text-gray-500">
               Filters
             </Text>
             {hasActiveFilters && (
@@ -713,7 +713,7 @@ export default function OrderHistoryScreen() {
             },
           ].map(({ label, options, value, set }) => (
             <View key={label} className="mb-3">
-              <Text className="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-2">
+              <Text className="mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500">
                 {label}
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -752,10 +752,10 @@ export default function OrderHistoryScreen() {
               size={48}
               color={isDark ? "#4B5563" : "#D1D5DB"}
             />
-            <Text className="text-gray-700 dark:text-gray-300 font-extrabold text-base mt-4">
+            <Text className="mt-4 text-base font-extrabold text-gray-700 dark:text-gray-300">
               No orders found
             </Text>
-            <Text className="text-gray-400 dark:text-gray-500 text-sm mt-1 text-center">
+            <Text className="mt-1 text-sm text-center text-gray-400 dark:text-gray-500">
               Try adjusting your filters.
             </Text>
             {hasActiveFilters && (
@@ -763,7 +763,7 @@ export default function OrderHistoryScreen() {
                 onPress={resetFilters}
                 className="mt-5 bg-blue-600 px-6 py-2.5 rounded-xl"
               >
-                <Text className="text-white font-bold text-sm">
+                <Text className="text-sm font-bold text-white">
                   Clear Filters
                 </Text>
               </Pressable>
