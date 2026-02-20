@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 
-// ─── Open DB (expo-sqlite v14+ async API) ─────────────────────────────────────
+// ─── Open DB ──────────────────────────────────────────────────────────────────
 
 let _db: SQLite.SQLiteDatabase | null = null;
 
@@ -82,12 +82,42 @@ const MIGRATIONS: string[] = [
   ALTER TABLE OrderItems ADD COLUMN item_name    TEXT    NOT NULL DEFAULT '';
   ALTER TABLE OrderItems ADD COLUMN modifiers    TEXT    NOT NULL DEFAULT '[]';
   `,
+
+  // v3 — make product_variant_id nullable so orders can be placed for
+  //       products that were added without an explicit variant assignment.
+  //       SQLite does not support ALTER COLUMN, so we recreate the table.
+  `
+  PRAGMA foreign_keys = OFF;
+
+  CREATE TABLE IF NOT EXISTS OrderItems_new (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id            INTEGER NOT NULL REFERENCES Orders(id) ON DELETE CASCADE,
+    product_variant_id  INTEGER,
+    item_name           TEXT    NOT NULL DEFAULT '',
+    quantity            INTEGER NOT NULL DEFAULT 1,
+    price               REAL    NOT NULL DEFAULT 0,
+    modifiers           TEXT    NOT NULL DEFAULT '[]',
+    money_tendered      REAL    NOT NULL DEFAULT 0,
+    change              REAL    NOT NULL DEFAULT 0,
+    subtotal            REAL    NOT NULL DEFAULT 0
+  );
+
+  INSERT INTO OrderItems_new
+    (id, order_id, product_variant_id, item_name, quantity, price, modifiers, money_tendered, change, subtotal)
+  SELECT
+    id, order_id, product_variant_id, item_name, quantity, price, modifiers, money_tendered, change, subtotal
+  FROM OrderItems;
+
+  DROP TABLE OrderItems;
+  ALTER TABLE OrderItems_new RENAME TO OrderItems;
+
+  PRAGMA foreign_keys = ON;
+  `,
 ];
 
 export async function runMigrations(): Promise<void> {
   const db = await getDb();
 
-  // Ensure migrations table exists first
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS _migrations (
       version    INTEGER PRIMARY KEY,
