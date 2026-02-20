@@ -1,12 +1,11 @@
-import React, { useState } from "react";
-import { View, Text, Pressable, TouchableOpacity } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useColorScheme } from "nativewind";
 import { useRouter } from "expo-router";
-import { useSidebar, SidebarProvider } from "../context/SidebarContext";
+import { useColorScheme } from "nativewind";
+import React from "react";
+import { Pressable, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SidebarProvider, useSidebar } from "../context/SidebarContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
-import { ThemeToggle } from "./ThemeToggle";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -33,7 +32,8 @@ const LayoutContent = ({
 };
 
 const MobileLayout = ({ children }: LayoutProps) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // ✅ Use SidebarContext so pages can call openSidebar() to open it
+  const { isOpen, openSidebar, closeSidebar } = useSidebar();
   const { colorScheme, toggleColorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
@@ -53,14 +53,14 @@ const MobileLayout = ({ children }: LayoutProps) => {
         {children}
       </View>
 
-      {/* Hamburger Button - Fixed at top with safe area */}
+      {/* Fixed Top Header with Hamburger */}
       <View
         className="absolute top-0 left-0 right-0 z-50"
         style={{ paddingTop: insets.top }}
       >
         <View className="flex-row justify-between items-center px-4 py-3 bg-white/95 dark:bg-gray-900/95 border-b border-gray-200 dark:border-gray-800">
           <Pressable
-            onPress={() => setIsSidebarOpen(!isSidebarOpen)}
+            onPress={openSidebar}
             className="p-2 rounded-lg bg-white dark:bg-gray-900 active:bg-gray-200 dark:active:bg-gray-700"
           >
             <Ionicons
@@ -70,26 +70,44 @@ const MobileLayout = ({ children }: LayoutProps) => {
             />
           </Pressable>
 
-          <View className="flex-1" />
+          <View className="flex-row items-center">
+            <View className="w-7 h-7 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center mr-2">
+              <Ionicons name="storefront" size={16} color="#fff" />
+            </View>
+            <Text className="text-gray-900 dark:text-white font-bold text-lg">
+              POS
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={toggleColorScheme}
+            className="p-2 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+          >
+            <Ionicons
+              name={isDark ? "moon" : "sunny"}
+              size={20}
+              color={isDark ? "#F59E0B" : "#6366F1"}
+            />
+          </Pressable>
         </View>
       </View>
 
       {/* Overlay */}
-      {isSidebarOpen && (
+      {isOpen && (
         <TouchableOpacity
           activeOpacity={1}
-          onPress={() => setIsSidebarOpen(false)}
+          onPress={closeSidebar}
           className="absolute inset-0 bg-black/50 z-40"
         />
       )}
 
-      {/* Sidebar */}
-      {isSidebarOpen && (
+      {/* Sidebar Drawer */}
+      {isOpen && (
         <View
           className="absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-900 z-50 shadow-2xl border-r border-gray-200 dark:border-gray-800"
           style={{ paddingTop: insets.top }}
         >
-          {/* Sidebar Header with Logo and Close Button */}
+          {/* Sidebar Header */}
           <View className="flex-row justify-between items-center px-4 py-4 border-b border-gray-200 dark:border-gray-800">
             <View className="flex-row items-center flex-1">
               <View className="w-9 h-9 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center mr-3">
@@ -99,9 +117,8 @@ const MobileLayout = ({ children }: LayoutProps) => {
                 POS
               </Text>
             </View>
-
             <Pressable
-              onPress={() => setIsSidebarOpen(false)}
+              onPress={closeSidebar}
               className="p-2 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
             >
               <Ionicons
@@ -112,13 +129,13 @@ const MobileLayout = ({ children }: LayoutProps) => {
             </Pressable>
           </View>
 
-          {/* Sidebar Content */}
+          {/* Sidebar Nav Links */}
           <View className="flex-1 px-3 pt-6">
             <Pressable
               className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
               onPress={() => {
                 router.push("/pages/ProductScreen");
-                setIsSidebarOpen(false);
+                closeSidebar();
               }}
             >
               <Ionicons
@@ -136,7 +153,7 @@ const MobileLayout = ({ children }: LayoutProps) => {
               className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
               onPress={() => {
                 router.push("/pages/OrderHistoryScreen");
-                setIsSidebarOpen(false);
+                closeSidebar();
               }}
             >
               <Ionicons
@@ -154,7 +171,7 @@ const MobileLayout = ({ children }: LayoutProps) => {
               className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
               onPress={() => {
                 router.push("/pages/AnalyticsScreen");
-                setIsSidebarOpen(false);
+                closeSidebar();
               }}
             >
               <MaterialCommunityIcons
@@ -172,7 +189,7 @@ const MobileLayout = ({ children }: LayoutProps) => {
               className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
               onPress={() => {
                 router.push("/pages/InventoryScreen");
-                setIsSidebarOpen(false);
+                closeSidebar();
               }}
             >
               <Ionicons
@@ -206,51 +223,6 @@ const MobileLayout = ({ children }: LayoutProps) => {
                 {isDark ? "Dark Mode" : "Light Mode"}
               </Text>
             </Pressable>
-
-            <Pressable
-              onPress={() => {
-                router.push("/pages/SettingsScreen");
-                setIsSidebarOpen(false);
-              }}
-              className="flex-row items-center px-3 py-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
-            >
-              <Ionicons
-                name="settings-outline"
-                size={22}
-                color={iconColor}
-                style={{ marginRight: 12 }}
-              />
-              <Text className="text-gray-900 dark:text-white font-medium text-base">
-                Settings
-              </Text>
-            </Pressable>
-
-            <View className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
-              <Pressable
-                onPress={() => {
-                  router.push("/pages/AccountScreen");
-                  setIsSidebarOpen(false);
-                }}
-                className="flex-row items-center px-3 py-2 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
-              >
-                <View className="w-10 h-10 rounded-full bg-blue-500 dark:bg-blue-600 items-center justify-center mr-3">
-                  <Text className="text-white font-semibold text-base">JD</Text>
-                </View>
-                <View className="flex-1">
-                  <Text className="text-gray-900 dark:text-white font-semibold text-sm">
-                    John Doe
-                  </Text>
-                  <Text className="text-gray-500 dark:text-gray-400 text-xs">
-                    john@example.com
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={isDark ? "#9ca3af" : "#6b7280"}
-                />
-              </Pressable>
-            </View>
           </View>
         </View>
       )}
@@ -266,6 +238,7 @@ const DesktopLayout = ({ children }: LayoutProps) => {
 
   return (
     <View className="flex-1 flex-row">
+      {/* Persistent sidebar for desktop */}
       <View className="w-64 bg-white dark:bg-gray-900 h-full px-3 py-4 justify-between border-r border-gray-200 dark:border-gray-800">
         <View>
           <View className="px-3 pb-4 mb-4 border-b border-gray-300 dark:border-gray-700">
@@ -327,9 +300,7 @@ const DesktopLayout = ({ children }: LayoutProps) => {
 
             <Pressable
               className="flex-row items-center px-3 py-3 mb-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
-              onPress={() => {
-                router.push("/pages/InventoryScreen");
-              }}
+              onPress={() => router.push("/pages/InventoryScreen")}
             >
               <Ionicons
                 name="cube-outline"
@@ -344,7 +315,8 @@ const DesktopLayout = ({ children }: LayoutProps) => {
           </View>
         </View>
 
-        <View className="pt-3">
+        {/* Desktop Footer */}
+        <View className="px-3">
           <Pressable
             onPress={toggleColorScheme}
             className="flex-row items-center px-3 py-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
@@ -359,49 +331,11 @@ const DesktopLayout = ({ children }: LayoutProps) => {
               {isDark ? "Dark Mode" : "Light Mode"}
             </Text>
           </Pressable>
-
-          <Pressable
-            onPress={() => router.push("/pages/SettingsScreen")}
-            className="flex-row items-center px-3 py-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
-          >
-            <Ionicons
-              name="settings-outline"
-              size={22}
-              color={iconColor}
-              style={{ marginRight: 12 }}
-            />
-            <Text className="text-gray-900 dark:text-white font-medium text-base">
-              Settings
-            </Text>
-          </Pressable>
-
-          <View className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
-            <Pressable
-              onPress={() => router.push("/pages/AccountScreen")}
-              className="flex-row items-center px-3 py-2 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
-            >
-              <View className="w-10 h-10 rounded-full bg-blue-500 dark:bg-blue-600 items-center justify-center mr-3">
-                <Text className="text-white font-semibold text-base">JD</Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-gray-900 dark:text-white font-semibold text-sm">
-                  John Doe
-                </Text>
-                <Text className="text-gray-500 dark:text-gray-400 text-xs">
-                  john@example.com
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={isDark ? "#9ca3af" : "#6b7280"}
-              />
-            </Pressable>
-          </View>
         </View>
       </View>
 
-      <View className="flex-1 bg-gray-50 dark:bg-gray-800">{children}</View>
+      {/* Page content */}
+      <View className="flex-1">{children}</View>
     </View>
   );
 };

@@ -1,18 +1,16 @@
-import React, { useState, useMemo } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  useWindowDimensions,
-} from "react-native";
-import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
-import { useSidebar } from "../context/SidebarContext";
 import { useColorScheme } from "nativewind";
+import React, { useMemo, useState } from "react";
+import {
+    Image,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native";
 
 // --- MOCK DATA ---
 const CATEGORIES = [
@@ -91,11 +89,9 @@ const PRODUCTS = [
 ];
 
 export default function ProductScreen() {
-  const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { colorScheme } = useColorScheme();
-  const { openSidebar } = useSidebar();
   const isDark = colorScheme === "dark";
 
   // --- STATE ---
@@ -128,12 +124,11 @@ export default function ProductScreen() {
     });
   };
 
-  // UPDATED: Decrement deletes entry if qty is 1
   const updateQty = (id: number, delta: number) => {
     setCart((prev) => {
       const item = prev.find((i) => i.id === id);
       if (item && item.qty === 1 && delta === -1) {
-        return prev.filter((i) => i.id !== id); // Delete item
+        return prev.filter((i) => i.id !== id);
       }
       return prev.map((i) => (i.id === id ? { ...i, qty: i.qty + delta } : i));
     });
@@ -155,25 +150,16 @@ export default function ProductScreen() {
   const tax = subtotal * 0.05;
 
   return (
-    <View
-      className="flex-1 bg-[#F4F7F4] dark:bg-gray-950"
-      style={{ paddingTop: insets.top }}
-    >
+    // ✅ No paddingTop here — AdaptiveLayout's MobileLayout already handles it
+    <View className="flex-1 bg-[#F4F7F4] dark:bg-gray-950">
       <Stack.Screen options={{ headerShown: false }} />
 
       <View className={`flex-1 ${isLandscape ? "flex-row" : "flex-col"}`}>
         {/* --- MENU SECTION --- */}
         {!isExpanded && (
           <View className={`${isLandscape ? "flex-[0.65]" : "flex-1"} p-4`}>
+            {/* Search bar row — hamburger removed, it's in the top header now */}
             <View className="flex-row items-center mb-4 space-x-2">
-              <TouchableOpacity onPress={openSidebar} className="p-2">
-                <Ionicons
-                  name="menu"
-                  size={30}
-                  color={isDark ? "white" : "black"}
-                />
-              </TouchableOpacity>
-
               <View className="flex-row items-center flex-1 px-4 py-2 bg-white border border-gray-100 shadow-sm dark:bg-gray-800 rounded-2xl dark:border-gray-700">
                 <Ionicons name="search" size={18} color="#9CA3AF" />
                 <TextInput
@@ -308,101 +294,100 @@ export default function ProductScreen() {
                     toggleSelection(item.id);
                   }}
                   onPress={() => selectionMode && toggleSelection(item.id)}
-                  className={`flex-row items-center p-3 mb-4 rounded-2xl border shadow-sm ${isSelected ? "bg-red-50 border-red-300 dark:bg-red-900/10" : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700"}`}
+                  className={`flex-row items-center p-3 mb-4 rounded-2xl border shadow-sm ${isSelected ? "bg-red-50 dark:bg-red-900/20 border-red-300" : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700"}`}
                 >
-                  <View className="relative">
-                    <Image
-                      source={{ uri: item.image }}
-                      className="bg-gray-100 w-14 h-14 rounded-xl"
-                    />
-                    {isSelected && (
-                      <View className="absolute inset-0 items-center justify-center bg-red-500/20 rounded-xl">
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={24}
-                          color="#ef4444"
-                        />
-                      </View>
-                    )}
-                  </View>
-
-                  <View className="flex-1 ml-3">
+                  <Image
+                    source={{ uri: item.image }}
+                    className="w-14 h-14 rounded-xl bg-gray-100"
+                  />
+                  <View className="flex-1 mx-3">
                     <Text
-                      className="font-bold text-[11px] dark:text-white"
+                      className="font-bold text-sm dark:text-white"
                       numberOfLines={1}
                     >
                       {item.name}
                     </Text>
-                    <View className="flex-row items-center justify-between mt-1">
-                      {!selectionMode ? (
-                        <View className="flex-row items-center px-2 py-1 rounded-full bg-gray-50 dark:bg-gray-700">
-                          <TouchableOpacity
-                            onPress={() => updateQty(item.id, -1)}
-                          >
-                            <Ionicons
-                              name="remove-circle-outline"
-                              size={20}
-                              color="#009245"
-                            />
-                          </TouchableOpacity>
-                          <Text className="mx-2 text-xs font-bold dark:text-white">
-                            {item.qty}X
-                          </Text>
-                          <TouchableOpacity
-                            onPress={() => updateQty(item.id, 1)}
-                          >
-                            <Ionicons
-                              name="add-circle-outline"
-                              size={20}
-                              color="#009245"
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <Text className="text-[10px] text-gray-400 italic">
-                          Long-press to select
-                        </Text>
-                      )}
-                      <Text className="font-bold text-[#009245] text-xs">
-                        ₱{(item.qty * item.price).toFixed(2)}
-                      </Text>
-                    </View>
+                    <Text className="text-green-600 font-bold text-sm">
+                      ₱{item.price}
+                    </Text>
                   </View>
+                  {!selectionMode && (
+                    <View className="flex-row items-center gap-2">
+                      <TouchableOpacity
+                        onPress={() => updateQty(item.id, -1)}
+                        className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 items-center justify-center"
+                      >
+                        <Ionicons
+                          name="remove"
+                          size={16}
+                          color={isDark ? "white" : "black"}
+                        />
+                      </TouchableOpacity>
+                      <Text className="font-bold w-5 text-center dark:text-white">
+                        {item.qty}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => updateQty(item.id, 1)}
+                        className="w-7 h-7 rounded-full bg-green-500 items-center justify-center"
+                      >
+                        <Ionicons name="add" size={16} color="white" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {selectionMode && (
+                    <Ionicons
+                      name={isSelected ? "checkmark-circle" : "ellipse-outline"}
+                      size={22}
+                      color={isSelected ? "#ef4444" : "#9ca3af"}
+                    />
+                  )}
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
 
-          <View className="p-5 bg-gray-50 dark:bg-gray-800 rounded-t-[35px] border-t border-gray-100 dark:border-gray-700 shadow-2xl">
-            <View className="flex-row justify-between px-2 mb-1">
-              <Text className="text-xs font-semibold text-gray-400">
-                Sub Total
-              </Text>
-              <Text className="text-xs font-bold dark:text-white">
+          {/* Order type tabs */}
+          <View className="flex-row mx-4 mb-3 bg-gray-100 dark:bg-gray-800 rounded-2xl p-1">
+            {["Dine in", "Take out", "Delivery"].map((type) => (
+              <TouchableOpacity
+                key={type}
+                onPress={() => setOrderType(type)}
+                className={`flex-1 py-2 rounded-xl items-center ${orderType === type ? "bg-white dark:bg-gray-700 shadow-sm" : ""}`}
+              >
+                <Text
+                  className={`text-xs font-bold ${orderType === type ? "text-gray-900 dark:text-white" : "text-gray-400"}`}
+                >
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Summary */}
+          <View className="px-4 pb-2">
+            <View className="flex-row justify-between mb-1">
+              <Text className="text-gray-400 text-sm">Subtotal</Text>
+              <Text className="font-bold text-sm dark:text-white">
                 ₱{subtotal.toFixed(2)}
               </Text>
             </View>
-            <View className="flex-row justify-between px-2 mb-3">
-              <Text className="text-xs font-semibold text-gray-400">
-                Tax (5%)
-              </Text>
-              <Text className="text-xs font-bold dark:text-white">
+            <View className="flex-row justify-between mb-3">
+              <Text className="text-gray-400 text-sm">Tax (5%)</Text>
+              <Text className="font-bold text-sm dark:text-white">
                 ₱{tax.toFixed(2)}
               </Text>
             </View>
-            <View className="flex-row items-center justify-between py-2 border-t border-gray-300 border-dashed dark:border-gray-600">
-              <Text className="text-base font-bold dark:text-white">
-                Total Amount
-              </Text>
-              <Text className="text-xl font-extrabold text-[#009245]">
+            <View className="flex-row justify-between mb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+              <Text className="font-bold text-base dark:text-white">Total</Text>
+              <Text className="font-bold text-base text-green-600">
                 ₱{(subtotal + tax).toFixed(2)}
               </Text>
             </View>
-            <TouchableOpacity
-              disabled={cart.length === 0 || selectionMode}
-              className={`py-4 rounded-2xl items-center shadow-lg mt-2 ${cart.length === 0 || selectionMode ? "bg-gray-300 dark:bg-gray-700" : "bg-[#009245]"}`}
-            >
-              <Text className="text-lg font-bold text-white">Place Order</Text>
+
+            <TouchableOpacity className="bg-green-500 py-4 rounded-2xl items-center">
+              <Text className="text-white font-bold text-base">
+                Place Order
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
