@@ -1,8 +1,17 @@
-import { Modal, View, Text, Pressable, ScrollView, Image } from "react-native";
+import {
+  Modal,
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  Image,
+  Alert,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useColorScheme } from "nativewind";
 import type { Product } from "../types/inventory";
 import { formatCurrency, formatDate } from "../types/inventory";
+import { productsRepo } from "../data/Products";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,7 +21,7 @@ interface ProductDetailModalProps {
   product: Product | null;
   categoryName: string;
   onEdit: () => void;
-  onViewHistory: () => void;
+  onDeleted: () => void; // ← replaces onViewHistory, called after successful delete
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -23,7 +32,7 @@ export function ProductDetailModal({
   product,
   categoryName,
   onEdit,
-  onViewHistory,
+  onDeleted,
 }: ProductDetailModalProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -31,10 +40,38 @@ export function ProductDetailModal({
   if (!product) return null;
 
   const profitMargin = product.sellingPrice - product.costPrice;
-  const profitPercentage = ((profitMargin / product.costPrice) * 100).toFixed(
-    1,
-  );
+  const profitPercentage =
+    product.costPrice > 0
+      ? ((profitMargin / product.costPrice) * 100).toFixed(1)
+      : "0.0";
   const hasVariants = product.variants && product.variants.length > 0;
+
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Product",
+      `Are you sure you want to delete "${product.name}"? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await productsRepo.delete(parseInt(product.id, 10));
+              onClose();
+              onDeleted(); // triggers loadData() in InventoryScreen
+            } catch (e) {
+              console.error("[ProductDetailModal] delete error", e);
+              Alert.alert(
+                "Error",
+                "Failed to delete product. Please try again.",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -214,33 +251,23 @@ export function ProductDetailModal({
 
           {/* Action Buttons */}
           <View className="px-5 py-4 border-t border-gray-200 dark:border-gray-700">
-            <View className="flex-row gap-2 mb-2">
+            <View className="flex-row gap-2">
+              {/* Edit */}
               <Pressable
-                onPress={() => {
-                  onClose();
-                  setTimeout(onEdit, 300);
-                }}
+                onPress={onEdit}
                 className="flex-1 bg-blue-600 rounded-xl py-3 flex-row items-center justify-center gap-2"
               >
                 <Ionicons name="create-outline" size={18} color="#FFFFFF" />
                 <Text className="text-white font-bold text-sm">Edit</Text>
               </Pressable>
 
+              {/* Delete */}
               <Pressable
-                onPress={() => {
-                  onClose();
-                  setTimeout(onViewHistory, 300);
-                }}
-                className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-xl py-3 flex-row items-center justify-center gap-2"
+                onPress={handleDelete}
+                className="flex-1 bg-red-50 dark:bg-red-950/40 border-2 border-red-200 dark:border-red-800 rounded-xl py-3 flex-row items-center justify-center gap-2"
               >
-                <Ionicons
-                  name="time-outline"
-                  size={18}
-                  color={isDark ? "#9CA3AF" : "#6B7280"}
-                />
-                <Text className="text-gray-700 dark:text-gray-300 font-bold text-sm">
-                  History
-                </Text>
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                <Text className="text-red-500 font-bold text-sm">Delete</Text>
               </Pressable>
             </View>
           </View>

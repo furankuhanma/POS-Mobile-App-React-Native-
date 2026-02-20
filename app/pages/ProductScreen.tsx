@@ -18,7 +18,13 @@ import { CheckoutModal, CartItem } from "../components/CheckoutModal";
 
 // ─── Success Toast ────────────────────────────────────────────────────────────
 
-function SuccessToast({ orderId, onDismiss }: { orderId: string; onDismiss: () => void }) {
+function SuccessToast({
+  orderId,
+  onDismiss,
+}: {
+  orderId: string;
+  onDismiss: () => void;
+}) {
   useEffect(() => {
     const t = setTimeout(onDismiss, 3000);
     return () => clearTimeout(t);
@@ -38,11 +44,70 @@ function SuccessToast({ orderId, onDismiss }: { orderId: string; onDismiss: () =
       <Ionicons name="checkmark-circle" size={24} color="#fff" />
       <View className="flex-1 ml-3">
         <Text className="text-sm font-black text-white">Order Placed!</Text>
-        <Text className="text-green-100 text-xs mt-0.5">{orderId} is now Preparing</Text>
+        <Text className="text-green-100 text-xs mt-0.5">
+          {orderId} is now Preparing
+        </Text>
       </View>
       <TouchableOpacity onPress={onDismiss}>
         <Ionicons name="close" size={20} color="#fff" />
       </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─── Product Image ─────────────────────────────────────────────────────────────
+// Shared component: shows image_uri if available, otherwise food icon placeholder.
+
+function ProductImage({
+  uri,
+  size = "card",
+  isDark,
+}: {
+  uri?: string | null;
+  size?: "card" | "thumb";
+  isDark: boolean;
+}) {
+  const isThumb = size === "thumb";
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={
+          isThumb
+            ? { width: 56, height: 56, borderRadius: 12 }
+            : { width: "100%", height: 112, borderRadius: 16 }
+        }
+        resizeMode="cover"
+      />
+    );
+  }
+  return (
+    <View
+      style={
+        isThumb
+          ? {
+              width: 56,
+              height: 56,
+              borderRadius: 12,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: isDark ? "#374151" : "#F3F4F6",
+            }
+          : {
+              width: "100%",
+              height: 112,
+              borderRadius: 16,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: isDark ? "#374151" : "#F3F4F6",
+            }
+      }
+    >
+      <MaterialCommunityIcons
+        name="food"
+        size={isThumb ? 24 : 40}
+        color={isDark ? "#4B5563" : "#D1D5DB"}
+      />
     </View>
   );
 }
@@ -102,16 +167,14 @@ export default function ProductScreen() {
   }, [products, search, activeCat]);
 
   // ── Cart helpers ─────────────────────────────────────────────────────────
-  /**
-   * Cart item key: `productId-variantId`
-   * If the product has no variants we use variantId = 0.
-   */
   const cartKey = (productId: number, variantId: number) =>
     `${productId}-${variantId}`;
 
-  const addToCart = (product: ProductWithVariants, variant: DbProductVariant | null) => {
+  const addToCart = (
+    product: ProductWithVariants,
+    variant: DbProductVariant | null,
+  ) => {
     if (selectionMode) return;
-
     const vId = variant?.id ?? 0;
     const key = cartKey(product.id, vId);
 
@@ -119,7 +182,7 @@ export default function ProductScreen() {
       const existing = prev.find((i) => cartKey(i.id, i.variantId) === key);
       if (existing) {
         return prev.map((i) =>
-          cartKey(i.id, i.variantId) === key ? { ...i, qty: i.qty + 1 } : i
+          cartKey(i.id, i.variantId) === key ? { ...i, qty: i.qty + 1 } : i,
         );
       }
       return [
@@ -131,15 +194,12 @@ export default function ProductScreen() {
           variantName: variant?.variant_name ?? product.name,
           price: variant?.price ?? 0,
           qty: 1,
+          imageUri: (product as any).image_uri ?? undefined, // ✅ carry image into cart
         },
       ];
     });
   };
 
-  /**
-   * For products with multiple variants we add the first/default variant.
-   * If there's only one variant (or none) we just pick it directly.
-   */
   const handleProductPress = (product: ProductWithVariants) => {
     if (selectionMode) return;
     const variant = product.variants[0] ?? null;
@@ -153,20 +213,20 @@ export default function ProductScreen() {
         return prev.filter((i) => cartKey(i.id, i.variantId) !== key);
       }
       return prev.map((i) =>
-        cartKey(i.id, i.variantId) === key ? { ...i, qty: i.qty + delta } : i
+        cartKey(i.id, i.variantId) === key ? { ...i, qty: i.qty + delta } : i,
       );
     });
   };
 
   const toggleSelection = (key: string) => {
     setSelectedIds((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
     );
   };
 
   const deleteSelected = () => {
     setCart((prev) =>
-      prev.filter((i) => !selectedIds.includes(cartKey(i.id, i.variantId)))
+      prev.filter((i) => !selectedIds.includes(cartKey(i.id, i.variantId))),
     );
     setSelectedIds([]);
     setSelectionMode(false);
@@ -191,7 +251,6 @@ export default function ProductScreen() {
     <View className="flex-1 bg-[#F4F7F4] dark:bg-gray-950">
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Success toast */}
       {successOrderId && (
         <SuccessToast
           orderId={successOrderId}
@@ -200,7 +259,7 @@ export default function ProductScreen() {
       )}
 
       <View className={`flex-1 ${isLandscape ? "flex-row" : "flex-col"}`}>
-        {/* ── MENU SECTION ──────────────────────────────────────────────── */}
+        {/* ── MENU SECTION ── */}
         {!isExpanded && (
           <View className={`${isLandscape ? "flex-[0.65]" : "flex-1"} p-4`}>
             {/* Search */}
@@ -248,7 +307,9 @@ export default function ProductScreen() {
             {loadingProducts ? (
               <View className="items-center justify-center flex-1">
                 <ActivityIndicator size="large" color="#16A34A" />
-                <Text className="mt-3 text-sm text-gray-400">Loading products…</Text>
+                <Text className="mt-3 text-sm text-gray-400">
+                  Loading products…
+                </Text>
               </View>
             ) : (
               <ScrollView showsVerticalScrollIndicator={false}>
@@ -264,14 +325,12 @@ export default function ProductScreen() {
                         style={{ width: isLandscape ? "31%" : "48%" }}
                         className="p-2 mb-4 bg-white shadow-sm dark:bg-gray-800 rounded-3xl"
                       >
-                        {/* Placeholder image (no image field in DB) */}
-                        <View className="items-center justify-center w-full bg-gray-100 h-28 rounded-2xl dark:bg-gray-700">
-                          <MaterialCommunityIcons
-                            name="food"
-                            size={40}
-                            color={isDark ? "#4B5563" : "#D1D5DB"}
-                          />
-                        </View>
+                        {/* ✅ Shows saved image, falls back to food icon */}
+                        <ProductImage
+                          uri={(product as any).image_uri}
+                          size="card"
+                          isDark={isDark}
+                        />
                         <Text
                           className="font-bold text-[11px] mt-2 dark:text-white"
                           numberOfLines={1}
@@ -292,7 +351,9 @@ export default function ProductScreen() {
 
                   {filtered.length === 0 && !loadingProducts && (
                     <View className="items-center flex-1 pt-16">
-                      <Text className="text-sm text-gray-400">No products found</Text>
+                      <Text className="text-sm text-gray-400">
+                        No products found
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -301,14 +362,14 @@ export default function ProductScreen() {
           </View>
         )}
 
-        {/* ── CART SECTION ──────────────────────────────────────────────── */}
+        {/* ── CART SECTION ── */}
         <View
           className={`bg-white dark:bg-gray-900 ${
             isLandscape
               ? "flex-[0.35] border-l border-gray-100 dark:border-gray-800"
               : isExpanded
-              ? "flex-1"
-              : "h-[45%] border-t border-gray-100 dark:border-gray-800"
+                ? "flex-1"
+                : "h-[45%] border-t border-gray-100 dark:border-gray-800"
           }`}
         >
           {/* Cart header */}
@@ -344,7 +405,9 @@ export default function ProductScreen() {
             ) : (
               <>
                 <View>
-                  <Text className="text-lg font-bold dark:text-white">Current Order</Text>
+                  <Text className="text-lg font-bold dark:text-white">
+                    Current Order
+                  </Text>
                   <Text className="text-xs text-gray-400">
                     {cart.reduce((s, i) => s + i.qty, 0)} Items
                   </Text>
@@ -395,14 +458,12 @@ export default function ProductScreen() {
                       : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700"
                   }`}
                 >
-                  {/* Placeholder icon */}
-                  <View className="items-center justify-center bg-gray-100 w-14 h-14 rounded-xl dark:bg-gray-700">
-                    <MaterialCommunityIcons
-                      name="food"
-                      size={24}
-                      color={isDark ? "#4B5563" : "#D1D5DB"}
-                    />
-                  </View>
+                  {/* ✅ Shows product image in cart too */}
+                  <ProductImage
+                    uri={(item as any).imageUri}
+                    size="thumb"
+                    isDark={isDark}
+                  />
 
                   <View className="flex-1 mx-3">
                     <Text
@@ -412,7 +473,9 @@ export default function ProductScreen() {
                       {item.name}
                     </Text>
                     {item.variantName !== item.name && (
-                      <Text className="text-xs text-gray-400">{item.variantName}</Text>
+                      <Text className="text-xs text-gray-400">
+                        {item.variantName}
+                      </Text>
                     )}
                     <Text className="text-sm font-bold text-green-600">
                       ₱{item.price.toFixed(2)}
@@ -470,7 +533,9 @@ export default function ProductScreen() {
               </Text>
             </View>
             <View className="flex-row justify-between pt-2 mb-4 border-t border-gray-100 dark:border-gray-800">
-              <Text className="text-base font-bold dark:text-white">Est. Total</Text>
+              <Text className="text-base font-bold dark:text-white">
+                Est. Total
+              </Text>
               <Text className="text-base font-bold text-green-600">
                 ₱{(subtotal + tax).toFixed(2)}
               </Text>
@@ -479,12 +544,16 @@ export default function ProductScreen() {
             <TouchableOpacity
               onPress={() => cart.length > 0 && setShowCheckout(true)}
               className={`py-4 rounded-2xl items-center ${
-                cart.length > 0 ? "bg-green-500" : "bg-gray-200 dark:bg-gray-700"
+                cart.length > 0
+                  ? "bg-green-500"
+                  : "bg-gray-200 dark:bg-gray-700"
               }`}
             >
               <Text
                 className={`font-bold text-base ${
-                  cart.length > 0 ? "text-white" : "text-gray-400 dark:text-gray-500"
+                  cart.length > 0
+                    ? "text-white"
+                    : "text-gray-400 dark:text-gray-500"
                 }`}
               >
                 {cart.length > 0 ? "Place Order →" : "Add items to order"}
@@ -494,7 +563,7 @@ export default function ProductScreen() {
         </View>
       </View>
 
-      {/* ── Checkout Modal ─────────────────────────────────────────────────── */}
+      {/* ── Checkout Modal ── */}
       <CheckoutModal
         visible={showCheckout}
         cart={cart}

@@ -1,7 +1,8 @@
 import { useColorScheme } from "nativewind";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   ScrollView,
@@ -33,6 +34,7 @@ import { OrderDetailModal } from "../components/OrderDetailModal";
 // ─── DB Imports ───────────────────────────────────────────────────────────────
 import { ordersRepo } from "../data/Orders";
 import { dbOrderToUi, uiItemsToDb } from "../data/OrderAdapter";
+import { exportOrdersToExcel } from "../data/ExportOrders";
 
 // ─── Type Imports ─────────────────────────────────────────────────────────────
 import type {
@@ -72,6 +74,7 @@ export default function OrderHistoryScreen() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [clearing, setClearing] = useState(false); // spinner during clear
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<OrderStatus | "All">("All");
@@ -108,7 +111,6 @@ export default function OrderHistoryScreen() {
         dateTo: range?.to,
       });
 
-      // For each order, also load its items so the UI has full detail
       const uiOrders: Order[] = await Promise.all(
         dbRows.map(async (dbOrder) => {
           const dbItems = await ordersRepo.items.getByOrder(dbOrder.id);
@@ -127,6 +129,104 @@ export default function OrderHistoryScreen() {
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  // ─── Clear History Flow ───────────────────────────────────────────────────────
+  // Step 1: Ask user if they want to export first
+  // Step 2a (Export & Clear): Export → then delete after share sheet closes
+  // Step 2b (Clear only): Second confirmation → delete
+  // All orders loaded at the time of the action are deleted regardless of filters.
+
+  const handleClearHistory = () => {
+    if (orders.length === 0) {
+      Alert.alert("Nothing to Clear", "There are no orders to delete.");
+      return;
+    }
+
+    Alert.alert(
+      "Clear Order History",
+      `You have ${orders.length} order${orders.length !== 1 ? "s" : ""} visible. Do you want to export before clearing? This action cannot be undone.`,
+      [
+        {
+          text: "Export & Clear",
+          onPress: handleExportThenClear,
+        },
+        {
+          text: "Clear Without Exporting",
+          style: "destructive",
+          onPress: confirmClearWithoutExport,
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+    );
+  };
+
+  const handleExportThenClear = async () => {
+    try {
+      setClearing(true);
+      // Load ALL orders (no filter) so the export is complete
+      const allDbRows = await ordersRepo.filter({});
+      const allOrders: Order[] = await Promise.all(
+        allDbRows.map(async (dbOrder) => {
+          const dbItems = await ordersRepo.items.getByOrder(dbOrder.id);
+          return dbOrderToUi(dbOrder, dbItems);
+        }),
+      );
+
+      await exportOrdersToExcel(allOrders);
+
+      // After share sheet closes (user saved/shared), proceed to delete
+      await performClear(allOrders.length);
+    } catch (e: any) {
+      console.error("[OrderHistory] export error", e);
+      Alert.alert(
+        "Export Failed",
+        e?.message ?? "Could not export. Please try again.",
+      );
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const confirmClearWithoutExport = () => {
+    Alert.alert(
+      "Are you sure?",
+      "All order history will be permanently deleted. This cannot be undone.",
+      [
+        {
+          text: "Yes, Delete All",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setClearing(true);
+              const allDbRows = await ordersRepo.filter({});
+              await performClear(allDbRows.length);
+            } catch (e: any) {
+              Alert.alert(
+                "Error",
+                "Failed to clear history. Please try again.",
+              );
+            } finally {
+              setClearing(false);
+            }
+          },
+        },
+        { text: "Cancel", style: "cancel" },
+      ],
+    );
+  };
+
+  const performClear = async (count: number) => {
+    await ordersRepo.deleteAll();
+    setOrders([]);
+    setPage(1);
+    Alert.alert(
+      "Cleared",
+      `${count} order${count !== 1 ? "s" : ""} have been deleted.`,
+    );
+  };
 
   // ─── Computed ────────────────────────────────────────────────────────────────
 
@@ -175,10 +275,8 @@ export default function OrderHistoryScreen() {
       ),
     );
 
-    // Reload to sync UI
     await loadOrders();
 
-    // Keep selected order in sync
     setSelectedOrder((prev) => {
       if (!prev || prev.id !== orderId) return prev;
       const now = new Date().toISOString();
@@ -214,7 +312,6 @@ export default function OrderHistoryScreen() {
     });
 
     await loadOrders();
-
     setSelectedOrder((prev) =>
       prev?.id === orderId ? { ...prev, ...updates } : prev,
     );
@@ -227,7 +324,6 @@ export default function OrderHistoryScreen() {
     const dbItems = uiItemsToDb(order._dbId, newItems);
     await ordersRepo.items.replaceAll(order._dbId, dbItems);
 
-    // Recalculate totals
     const subtotal = newItems.reduce(
       (sum, i) => sum + i.quantity * i.unitPrice,
       0,
@@ -242,7 +338,6 @@ export default function OrderHistoryScreen() {
       tax,
       total_amount: total,
     });
-
     await loadOrders();
 
     setSelectedOrder((prev) => {
@@ -269,12 +364,32 @@ export default function OrderHistoryScreen() {
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-800">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* ── Header ── */}
       <View className="px-5 pt-6 pb-4 bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
-        <View className="flex-row items-end justify-between mb-4">
+        <View className="flex-row items-center justify-between mb-4">
           <Text className="text-2xl font-black text-gray-900 dark:text-white">
             Order History
           </Text>
+
+          {/* ✅ Clear History button */}
+          <Pressable
+            onPress={handleClearHistory}
+            disabled={clearing || orders.length === 0}
+            className={`flex-row items-center gap-1.5 px-3 py-2 rounded-xl border-2 ${
+              orders.length === 0
+                ? "border-gray-200 dark:border-gray-700 opacity-40"
+                : "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40"
+            }`}
+          >
+            {clearing ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <Ionicons name="trash-outline" size={15} color="#EF4444" />
+            )}
+            <Text className="text-xs font-bold text-red-500">
+              {clearing ? "Working…" : "Clear History"}
+            </Text>
+          </Pressable>
         </View>
 
         {/* Search Bar */}
@@ -341,12 +456,11 @@ export default function OrderHistoryScreen() {
 
           <Pressable
             onPress={() => setShowDateModal(true)}
-            className={`flex-row items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 flex-shrink-0
-              ${
-                datePreset !== "all"
-                  ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800"
-                  : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-              }`}
+            className={`flex-row items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 flex-shrink-0 ${
+              datePreset !== "all"
+                ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800"
+                : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            }`}
           >
             <Ionicons
               name="calendar-outline"
@@ -384,7 +498,7 @@ export default function OrderHistoryScreen() {
         </View>
       </View>
 
-      {/* ── Filter Panel ──────────────────────────────────────────────────── */}
+      {/* ── Filter Panel ── */}
       {showFilters && (
         <View className="px-4 py-4 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-700">
           <View className="flex-row items-center justify-between mb-3">
@@ -460,7 +574,7 @@ export default function OrderHistoryScreen() {
         </View>
       )}
 
-      {/* ── Order List ────────────────────────────────────────────────────── */}
+      {/* ── Order List ── */}
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator
@@ -506,7 +620,7 @@ export default function OrderHistoryScreen() {
         />
       )}
 
-      {/* ── Pagination ────────────────────────────────────────────────────── */}
+      {/* ── Pagination ── */}
       {!loading && (
         <PaginationBar
           page={page}
@@ -519,7 +633,7 @@ export default function OrderHistoryScreen() {
         />
       )}
 
-      {/* ── Modals ────────────────────────────────────────────────────────── */}
+      {/* ── Modals ── */}
       <DateFilterModal
         visible={showDateModal}
         onClose={() => setShowDateModal(false)}

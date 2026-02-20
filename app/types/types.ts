@@ -11,6 +11,8 @@ export interface DbProduct {
   category_id: number;
   name: string;
   description: string | null;
+  cost_price: number; // ✅ added — persisted in DB via migration v4
+  image_uri: string | null; // ✅ added — compressed JPEG path, migration v5
   created_at: string;
 }
 
@@ -70,11 +72,13 @@ export interface DbOrderItem {
 
 // ─── Insert / Update DTOs ─────────────────────────────────────────────────────
 
-export type CreateCategory = Omit<DbCategory, "id" | "created_at">;
-export type UpdateCategory = Partial<CreateCategory>;
-
+// ✅ CreateProduct and UpdateProduct automatically include cost_price
+//    because they're derived from DbProduct via Omit/Partial
 export type CreateProduct = Omit<DbProduct, "id" | "created_at">;
 export type UpdateProduct = Partial<CreateProduct>;
+
+export type CreateCategory = Omit<DbCategory, "id" | "created_at">;
+export type UpdateCategory = Partial<CreateCategory>;
 
 export type CreateProductVariant = Omit<DbProductVariant, "id" | "created_at">;
 export type UpdateProductVariant = Partial<CreateProductVariant>;

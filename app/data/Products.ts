@@ -62,7 +62,7 @@ export const productsRepo = {
       variantMap.get(v.product_id)!.push(v);
     }
 
-    return products.map((p : any) => ({
+    return products.map((p: any) => ({
       ...p,
       variants: variantMap.get(p.id) ?? [],
     }));
@@ -71,10 +71,13 @@ export const productsRepo = {
   async create(data: CreateProduct): Promise<DbProduct> {
     const db = await getDb();
     const result = await db.runAsync(
-      "INSERT INTO Products (category_id, name, description) VALUES (?, ?, ?);",
+      // ✅ Now includes cost_price and image_uri
+      "INSERT INTO Products (category_id, name, description, cost_price, image_uri) VALUES (?, ?, ?, ?, ?);",
       data.category_id,
       data.name,
-      data.description ?? null
+      data.description ?? null,
+      data.cost_price ?? 0,
+      data.image_uri ?? null,
     );
     return (await db.getFirstAsync<DbProduct>(
       "SELECT * FROM Products WHERE id = ?;",
@@ -87,9 +90,12 @@ export const productsRepo = {
     const fields: string[] = [];
     const values: any[] = [];
 
-    if (data.name !== undefined) { fields.push("name = ?"); values.push(data.name); }
+    if (data.name !== undefined)        { fields.push("name = ?");        values.push(data.name); }
     if (data.description !== undefined) { fields.push("description = ?"); values.push(data.description); }
     if (data.category_id !== undefined) { fields.push("category_id = ?"); values.push(data.category_id); }
+    // ✅ saves cost_price and image_uri on update
+    if (data.cost_price !== undefined)  { fields.push("cost_price = ?");  values.push(data.cost_price); }
+    if (data.image_uri !== undefined)   { fields.push("image_uri = ?");   values.push(data.image_uri); }
 
     if (fields.length === 0) return;
     values.push(id);
@@ -153,7 +159,7 @@ export const productsRepo = {
       const values: any[] = [];
 
       if (data.variant_name !== undefined) { fields.push("variant_name = ?"); values.push(data.variant_name); }
-      if (data.price !== undefined) { fields.push("price = ?"); values.push(data.price); }
+      if (data.price !== undefined)        { fields.push("price = ?");        values.push(data.price); }
 
       if (fields.length === 0) return;
       values.push(id);

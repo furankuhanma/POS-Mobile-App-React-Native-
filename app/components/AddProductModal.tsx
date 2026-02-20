@@ -10,10 +10,12 @@ import {
   Platform,
   Image,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useColorScheme } from "nativewind";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import type { Product, Category } from "../types/inventory";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -30,6 +32,30 @@ interface VariantInput {
   id: string;
   name: string;
   additionalPrice: string;
+}
+
+// ─── Image Compression ────────────────────────────────────────────────────────
+// Converts any picked image to a compressed JPEG regardless of source format.
+// Falls back to the original URI if manipulation fails so the user is never blocked.
+
+async function compressToJpeg(uri: string): Promise<string> {
+  try {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 800 } }], // cap width to 800px, height scales proportionally
+      {
+        compress: 0.75, // 75% quality — good balance of size vs clarity
+        format: ImageManipulator.SaveFormat.JPEG,
+      },
+    );
+    return result.uri;
+  } catch (e) {
+    console.warn(
+      "[AddProductModal] image compression failed, using original:",
+      e,
+    );
+    return uri; // fallback — still works, just uncompressed
+  }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -53,6 +79,7 @@ export function AddProductModal({
   const [sellingPrice, setSellingPrice] = useState("");
   const [variants, setVariants] = useState<VariantInput[]>([]);
   const [showVariants, setShowVariants] = useState(false);
+  const [compressing, setCompressing] = useState(false); // shows spinner while compressing
 
   // ─── Effects ────────────────────────────────────────────────────────────────
 
@@ -74,6 +101,9 @@ export function AddProductModal({
             additionalPrice: v.additionalPrice.toString(),
           })),
         );
+      } else {
+        setVariants([]);
+        setShowVariants(false);
       }
     } else {
       resetForm();
@@ -106,6 +136,17 @@ export function AddProductModal({
     return true;
   };
 
+  // ── Core: pick image then compress it ──────────────────────────────────────
+  const processImage = async (uri: string) => {
+    setCompressing(true);
+    try {
+      const compressed = await compressToJpeg(uri);
+      setImage(compressed);
+    } finally {
+      setCompressing(false);
+    }
+  };
+
   const handleTakePhoto = async () => {
     const hasPermission = await requestPermission("camera");
     if (!hasPermission) return;
@@ -113,9 +154,11 @@ export function AddProductModal({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 1, // pick full quality — we compress ourselves below
     });
-    if (!result.canceled && result.assets[0]) setImage(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) {
+      await processImage(result.assets[0].uri);
+    }
   };
 
   const handlePickFromGallery = async () => {
@@ -125,9 +168,11 @@ export function AddProductModal({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 1, // pick full quality — we compress ourselves below
     });
-    if (!result.canceled && result.assets[0]) setImage(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) {
+      await processImage(result.assets[0].uri);
+    }
   };
 
   const handleImagePress = () => {
@@ -168,7 +213,7 @@ export function AddProductModal({
     const productData: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
       name,
       description: description || undefined,
-      image: image || undefined,
+      image: image || undefined, // ✅ compressed JPEG URI passed through to InventoryScreen → DB
       categoryId,
       costPrice: parseFloat(costPrice),
       sellingPrice: parseFloat(sellingPrice),
@@ -242,10 +287,20 @@ export function AddProductModal({
               className="px-5 py-4"
               showsVerticalScrollIndicator={false}
             >
-              {/* ── Product Image Upload ──────────────────────────────────── */}
+              {/* ── Product Image ── */}
               <View className="mb-5 items-center">
                 <Pressable onPress={handleImagePress} className="items-center">
-                  {image ? (
+                  {compressing ? (
+                    // Spinner shown while compressing
+                    <View className="w-28 h-28 rounded-2xl bg-gray-100 dark:bg-gray-800 items-center justify-center">
+                      <ActivityIndicator
+                        color={isDark ? "#60A5FA" : "#2563EB"}
+                      />
+                      <Text className="text-gray-400 text-xs mt-2">
+                        Processing…
+                      </Text>
+                    </View>
+                  ) : image ? (
                     <View className="relative">
                       <Image
                         source={{ uri: image }}
@@ -273,6 +328,7 @@ export function AddProductModal({
                 <View className="flex-row gap-3 mt-3">
                   <Pressable
                     onPress={handleTakePhoto}
+                    disabled={compressing}
                     className="flex-row items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl"
                   >
                     <Ionicons
@@ -286,6 +342,7 @@ export function AddProductModal({
                   </Pressable>
                   <Pressable
                     onPress={handlePickFromGallery}
+                    disabled={compressing}
                     className="flex-row items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl"
                   >
                     <Ionicons
@@ -297,7 +354,7 @@ export function AddProductModal({
                       Gallery
                     </Text>
                   </Pressable>
-                  {image && (
+                  {image && !compressing && (
                     <Pressable
                       onPress={() => setImage("")}
                       className="flex-row items-center gap-1.5 px-4 py-2 bg-red-50 dark:bg-red-950/40 rounded-xl"
@@ -313,6 +370,11 @@ export function AddProductModal({
                     </Pressable>
                   )}
                 </View>
+
+                {/* Format hint */}
+                <Text className="text-gray-400 dark:text-gray-600 text-xs mt-2">
+                  Any image format • auto-converted to JPEG
+                </Text>
               </View>
 
               {/* Product Name */}
@@ -440,7 +502,6 @@ export function AddProductModal({
                             />
                           </Pressable>
                         </View>
-
                         <TextInput
                           value={variant.name}
                           onChangeText={(v) => updateVariant(index, "name", v)}
@@ -448,7 +509,6 @@ export function AddProductModal({
                           placeholderTextColor={isDark ? "#6B7280" : "#9CA3AF"}
                           className="bg-white dark:bg-gray-900 rounded-lg px-3 py-2 text-gray-900 dark:text-white mb-2 text-sm"
                         />
-
                         <TextInput
                           value={variant.additionalPrice}
                           onChangeText={(v) =>
@@ -492,11 +552,16 @@ export function AddProductModal({
               </Pressable>
               <Pressable
                 onPress={handleSave}
+                disabled={compressing}
                 className="flex-1 bg-blue-600 rounded-xl py-3 items-center"
               >
-                <Text className="text-white font-bold">
-                  {editProduct ? "Save Changes" : "Add Product"}
-                </Text>
+                {compressing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white font-bold">
+                    {editProduct ? "Save Changes" : "Add Product"}
+                  </Text>
+                )}
               </Pressable>
             </View>
           </Pressable>

@@ -22,7 +22,7 @@ import { ProductDetailModal } from "../components/ProductDetailModal";
 import { productsRepo } from "../data/Products";
 import { categoriesRepo } from "../data/Categories";
 
-// ─── Inventory Types (used by AddProductModal / ProductCard) ──────────────────
+// ─── Inventory Types ──────────────────────────────────────────────────────────
 import type { Product, Category } from "../types/inventory";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -62,29 +62,22 @@ export default function InventoryScreen() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Load categories from DB
       const dbCats = await categoriesRepo.getAll();
-
-      // Map DbCategory (numeric id) → Category (string id) that AddProductModal expects
       const uiCategories: Category[] = dbCats.map((c) => ({
         id: String(c.id),
         name: c.name,
       }));
-
       setCategories(uiCategories);
 
-      // Load products with variants from DB
       const dbProducts = await productsRepo.getAllWithVariants();
-
-      // Map DbProduct + DbProductVariant → Product (inventory UI type)
       const uiProducts: Product[] = dbProducts.map((p) => ({
         id: String(p.id),
         name: p.name,
         description: p.description ?? undefined,
         categoryId: String(p.category_id),
-        // Use first variant price as sellingPrice; fallback 0
         sellingPrice: p.variants[0]?.price ?? 0,
-        costPrice: 0, // DB has no cost price column — stored as 0
+        costPrice: (p as any).cost_price ?? 0,
+        image: (p as any).image_uri ?? undefined,
         isArchived: false,
         createdAt: p.created_at,
         updatedAt: p.created_at,
@@ -93,12 +86,10 @@ export default function InventoryScreen() {
             ? p.variants.map((v) => ({
                 id: String(v.id),
                 name: v.variant_name,
-                // additionalPrice = variant price - base price
                 additionalPrice: v.price - (p.variants[0]?.price ?? v.price),
               }))
             : undefined,
       }));
-
       setProducts(uiProducts);
     } catch (e) {
       console.error("[InventoryScreen] load error", e);
@@ -120,42 +111,50 @@ export default function InventoryScreen() {
       const categoryId = parseInt(productData.categoryId, 10);
 
       if (selectedProduct) {
-        // ── UPDATE existing product ─────────────────────────────────────────
         const dbId = parseInt(selectedProduct.id, 10);
-
         await productsRepo.update(dbId, {
           name: productData.name,
           description: productData.description ?? null,
           category_id: categoryId,
+          cost_price: productData.costPrice,
+          image_uri: productData.image ?? null, // ✅ save image
         });
 
-        // Replace variants
         const variantInputs =
           productData.variants && productData.variants.length > 0
             ? productData.variants.map((v) => ({
                 variant_name: v.name,
-                // price = sellingPrice + additionalPrice
                 price: productData.sellingPrice + (v.additionalPrice ?? 0),
               }))
-            : [{ variant_name: productData.name, price: productData.sellingPrice }];
+            : [
+                {
+                  variant_name: productData.name,
+                  price: productData.sellingPrice,
+                },
+              ];
 
         await productsRepo.variants.replaceAll(dbId, variantInputs);
       } else {
-        // ── CREATE new product ──────────────────────────────────────────────
         const created = await productsRepo.create({
           category_id: categoryId,
           name: productData.name,
           description: productData.description ?? null,
+          cost_price: productData.costPrice,
+          image_uri: productData.image ?? null, // ✅ save image
         });
 
-        // Insert variants (at least one — the base price)
         const variantInputs =
           productData.variants && productData.variants.length > 0
             ? productData.variants.map((v) => ({
                 variant_name: v.name,
                 price: productData.sellingPrice + (v.additionalPrice ?? 0),
               }))
-            : [{ variant_name: productData.name, price: productData.sellingPrice }];
+            : [
+                {
+                  variant_name: productData.name,
+                  price: productData.sellingPrice,
+                },
+              ];
 
         for (const v of variantInputs) {
           await productsRepo.variants.create({
@@ -166,7 +165,6 @@ export default function InventoryScreen() {
         }
       }
 
-      // Reload from DB to reflect actual saved state
       await loadData();
     } catch (e) {
       console.error("[InventoryScreen] save error", e);
@@ -176,8 +174,8 @@ export default function InventoryScreen() {
     setSelectedProduct(null);
   };
 
-  // ─── Ensure at least a "General" category exists ─────────────────────────────
-  // If the DB has no categories yet, seed one so AddProductModal isn't empty.
+  // ─── Ensure default categories ───────────────────────────────────────────────
+
   const ensureDefaultCategory = useCallback(async () => {
     const existing = await categoriesRepo.getAll();
     if (existing.length === 0) {
@@ -205,7 +203,10 @@ export default function InventoryScreen() {
       if (p.isArchived) return false;
       if (search) {
         const q = search.toLowerCase();
-        if (!p.name.toLowerCase().includes(q) && !p.id.toLowerCase().includes(q))
+        if (
+          !p.name.toLowerCase().includes(q) &&
+          !p.id.toLowerCase().includes(q)
+        )
           return false;
       }
       if (filterCategory !== "all") {
@@ -234,7 +235,7 @@ export default function InventoryScreen() {
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-800">
-      {/* ── Header ───────────────────────────────────────────────────────────── */}
+      {/* ── Header ── */}
       <View className="px-5 pt-6 pb-4 bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
         <View className="flex-row items-end justify-between mb-4">
           <Text className="text-2xl font-black text-gray-900 dark:text-white">
@@ -252,7 +253,6 @@ export default function InventoryScreen() {
           </Pressable>
         </View>
 
-        {/* Count pill */}
         <View className="flex-row mb-4">
           <View className="flex-row items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
             <Ionicons
@@ -266,7 +266,6 @@ export default function InventoryScreen() {
           </View>
         </View>
 
-        {/* Search */}
         <View className="flex-row items-center px-4 mb-3 bg-gray-100 dark:bg-gray-900 rounded-xl h-11">
           <Ionicons
             name="search-outline"
@@ -275,19 +274,30 @@ export default function InventoryScreen() {
           />
           <TextInput
             value={search}
-            onChangeText={(t) => { setSearch(t); setPage(1); }}
+            onChangeText={(t) => {
+              setSearch(t);
+              setPage(1);
+            }}
             placeholder="Search by product name or ID"
             placeholderTextColor={isDark ? "#4B5563" : "#9CA3AF"}
             className="flex-1 ml-3 text-sm text-gray-900 dark:text-white"
           />
           {search.length > 0 && (
-            <Pressable onPress={() => { setSearch(""); setPage(1); }}>
-              <Ionicons name="close-circle" size={18} color={isDark ? "#9CA3AF" : "#6B7280"} />
+            <Pressable
+              onPress={() => {
+                setSearch("");
+                setPage(1);
+              }}
+            >
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={isDark ? "#9CA3AF" : "#6B7280"}
+              />
             </Pressable>
           )}
         </View>
 
-        {/* Filter toggle */}
         <Pressable
           onPress={() => setShowFilters(!showFilters)}
           className="flex-row items-center gap-1.5"
@@ -295,9 +305,19 @@ export default function InventoryScreen() {
           <Ionicons
             name={showFilters ? "options" : "options-outline"}
             size={16}
-            color={showFilters ? (isDark ? "#60A5FA" : "#2563EB") : (isDark ? "#9CA3AF" : "#6B7280")}
+            color={
+              showFilters
+                ? isDark
+                  ? "#60A5FA"
+                  : "#2563EB"
+                : isDark
+                  ? "#9CA3AF"
+                  : "#6B7280"
+            }
           />
-          <Text className={`text-sm font-semibold ${showFilters ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`}>
+          <Text
+            className={`text-sm font-semibold ${showFilters ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`}
+          >
             {showFilters ? "Hide Filters" : "Filters"}
           </Text>
           {hasActiveFilters && (
@@ -306,7 +326,7 @@ export default function InventoryScreen() {
         </Pressable>
       </View>
 
-      {/* ── Filter Panel ─────────────────────────────────────────────────────── */}
+      {/* ── Filter Panel ── */}
       {showFilters && (
         <View className="px-4 py-4 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-700">
           <View className="flex-row items-center justify-between mb-3">
@@ -315,7 +335,9 @@ export default function InventoryScreen() {
             </Text>
             {hasActiveFilters && (
               <Pressable onPress={resetFilters}>
-                <Text className="text-xs font-bold text-red-500">Reset All</Text>
+                <Text className="text-xs font-bold text-red-500">
+                  Reset All
+                </Text>
               </Pressable>
             )}
           </View>
@@ -326,24 +348,33 @@ export default function InventoryScreen() {
             <FilterChip
               label="All"
               active={filterCategory === "all"}
-              onPress={() => { setFilterCategory("all"); setPage(1); }}
+              onPress={() => {
+                setFilterCategory("all");
+                setPage(1);
+              }}
             />
             {parentCategories.map((cat) => (
               <FilterChip
                 key={cat.id}
                 label={cat.name}
                 active={filterCategory === cat.id}
-                onPress={() => { setFilterCategory(cat.id); setPage(1); }}
+                onPress={() => {
+                  setFilterCategory(cat.id);
+                  setPage(1);
+                }}
               />
             ))}
           </ScrollView>
         </View>
       )}
 
-      {/* ── Product List ─────────────────────────────────────────────────────── */}
+      {/* ── Product List ── */}
       {loading ? (
         <View className="items-center justify-center flex-1">
-          <ActivityIndicator size="large" color={isDark ? "#60A5FA" : "#2563EB"} />
+          <ActivityIndicator
+            size="large"
+            color={isDark ? "#60A5FA" : "#2563EB"}
+          />
           <Text className="mt-3 text-sm text-gray-400">Loading inventory…</Text>
         </View>
       ) : (
@@ -369,11 +400,18 @@ export default function InventoryScreen() {
                 No products found
               </Text>
               <Text className="mt-1 text-sm text-center text-gray-400 dark:text-gray-500">
-                {hasActiveFilters ? "Try adjusting your filters." : "Add your first product to get started."}
+                {hasActiveFilters
+                  ? "Try adjusting your filters."
+                  : "Add your first product to get started."}
               </Text>
               {hasActiveFilters && (
-                <Pressable onPress={resetFilters} className="mt-5 bg-blue-600 px-6 py-2.5 rounded-xl">
-                  <Text className="text-sm font-bold text-white">Clear Filters</Text>
+                <Pressable
+                  onPress={resetFilters}
+                  className="mt-5 bg-blue-600 px-6 py-2.5 rounded-xl"
+                >
+                  <Text className="text-sm font-bold text-white">
+                    Clear Filters
+                  </Text>
                 </Pressable>
               )}
             </View>
@@ -381,7 +419,7 @@ export default function InventoryScreen() {
         />
       )}
 
-      {/* ── Pagination ───────────────────────────────────────────────────────── */}
+      {/* ── Pagination ── */}
       {!loading && (
         <PaginationBar
           page={page}
@@ -394,22 +432,37 @@ export default function InventoryScreen() {
         />
       )}
 
-      {/* ── Modals ───────────────────────────────────────────────────────────── */}
+      {/* ── Modals ── */}
       <ProductDetailModal
         visible={showDetailModal}
-        onClose={() => { setShowDetailModal(false); setSelectedProduct(null); }}
+        onClose={() => {
+          setShowDetailModal(false);
+          setSelectedProduct(null);
+        }}
         product={selectedProduct}
-        categoryName={selectedProduct ? getCategoryName(selectedProduct.categoryId, categories) : ""}
+        categoryName={
+          selectedProduct
+            ? getCategoryName(selectedProduct.categoryId, categories)
+            : ""
+        }
         onEdit={() => {
           setShowDetailModal(false);
           setShowAddModal(true);
         }}
-        onViewHistory={() => setShowDetailModal(false)}
+        onDeleted={() => {
+          // Product was deleted — close modal, clear selection, reload list
+          setShowDetailModal(false);
+          setSelectedProduct(null);
+          loadData();
+        }}
       />
 
       <AddProductModal
         visible={showAddModal}
-        onClose={() => { setShowAddModal(false); setSelectedProduct(null); }}
+        onClose={() => {
+          setShowAddModal(false);
+          setSelectedProduct(null);
+        }}
         onSave={handleSaveProduct}
         categories={categories}
         editProduct={selectedProduct}

@@ -113,6 +113,16 @@ const MIGRATIONS: string[] = [
 
   PRAGMA foreign_keys = ON;
   `,
+
+  // v4 — add cost_price to Products (defaults to 0 for existing rows)
+  `
+  ALTER TABLE Products ADD COLUMN cost_price REAL NOT NULL DEFAULT 0;
+  `,
+
+  // v5 — add image_uri to Products (stores compressed local JPEG path)
+  `
+  ALTER TABLE Products ADD COLUMN image_uri TEXT;
+  `,
 ];
 
 export async function runMigrations(): Promise<void> {

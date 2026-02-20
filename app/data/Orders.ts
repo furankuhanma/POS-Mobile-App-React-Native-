@@ -29,6 +29,11 @@ export const ordersRepo = {
       id
     );
   },
+  async deleteAll(): Promise<void> {
+  const db = await getDb();
+  // OrderItems cascade-delete via FK, so just deleting Orders is enough
+  await db.runAsync("DELETE FROM Orders;");
+},
 
   async getByOrderNumber(orderNumber: string): Promise<DbOrder | null> {
     const db = await getDb();
