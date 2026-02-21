@@ -38,7 +38,7 @@ function daysAgoStr(n: number) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUB-COMPONENTS  (same visual as before — no changes needed)
+// SUB-COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
 function MetricCard({
@@ -264,7 +264,7 @@ function RankRow({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TABS (same layout, now receive real orders)
+// TABS
 // ─────────────────────────────────────────────────────────────────────────────
 
 function OverviewTab({ orders, isDark }: { orders: Order[]; isDark: boolean }) {
@@ -277,7 +277,6 @@ function OverviewTab({ orders, isDark }: { orders: Order[]; isDark: boolean }) {
     ? (completedOrders / totalOrders) * 100
     : 0;
 
-  // Last 7 days trend
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
@@ -470,15 +469,46 @@ function ProductsTab({ orders, isDark }: { orders: Order[]; isDark: boolean }) {
       className="flex-1"
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
     >
-      <View className="flex-row bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mb-5">
+      {/* ── Sort toggle — inline styles only, no dynamic className ── */}
+      <View
+        style={{
+          flexDirection: "row",
+          backgroundColor: isDark ? "#1F2937" : "#F3F4F6",
+          borderRadius: 12,
+          padding: 4,
+          marginBottom: 20,
+        }}
+      >
         {(["revenue", "qty"] as const).map((s) => (
           <Pressable
             key={s}
             onPress={() => setSortBy(s)}
-            className={`flex-1 py-2 rounded-lg items-center ${sortBy === s ? "bg-white dark:bg-gray-700 shadow-sm" : ""}`}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              borderRadius: 10,
+              alignItems: "center",
+              backgroundColor:
+                sortBy === s ? (isDark ? "#374151" : "#ffffff") : "transparent",
+              shadowColor: sortBy === s ? "#000" : "transparent",
+              shadowOpacity: sortBy === s ? 0.08 : 0,
+              shadowRadius: 2,
+              elevation: sortBy === s ? 1 : 0,
+            }}
           >
             <Text
-              className={`text-sm font-bold ${sortBy === s ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`}
+              style={{
+                fontSize: 14,
+                fontWeight: "700",
+                color:
+                  sortBy === s
+                    ? isDark
+                      ? "#60A5FA"
+                      : "#2563EB"
+                    : isDark
+                      ? "#6B7280"
+                      : "#9CA3AF",
+              }}
             >
               {s === "revenue" ? "By Revenue" : "By Qty Sold"}
             </Text>
@@ -558,17 +588,26 @@ function OrdersTab({ orders, isDark }: { orders: Order[]; isDark: boolean }) {
     )
     .slice(0, 8);
 
-  const statusBg: Record<Order["orderStatus"], string> = {
-    Done: "bg-green-50 dark:bg-green-900/20",
-    Served: "bg-blue-50 dark:bg-blue-900/20",
-    Preparing: "bg-yellow-50 dark:bg-yellow-900/20",
-    Cancelled: "bg-red-50 dark:bg-red-900/20",
-  };
-  const statusText: Record<Order["orderStatus"], string> = {
-    Done: "text-green-700 dark:text-green-400",
-    Served: "text-blue-700 dark:text-blue-400",
-    Preparing: "text-yellow-700 dark:text-yellow-400",
-    Cancelled: "text-red-700 dark:text-red-400",
+  const statusStyles: Record<
+    Order["orderStatus"],
+    { bg: string; text: string }
+  > = {
+    Done: {
+      bg: isDark ? "rgba(21,128,61,0.2)" : "#F0FDF4",
+      text: isDark ? "#4ADE80" : "#15803D",
+    },
+    Served: {
+      bg: isDark ? "rgba(37,99,235,0.2)" : "#EFF6FF",
+      text: isDark ? "#60A5FA" : "#1D4ED8",
+    },
+    Preparing: {
+      bg: isDark ? "rgba(180,83,9,0.2)" : "#FFFBEB",
+      text: isDark ? "#FCD34D" : "#B45309",
+    },
+    Cancelled: {
+      bg: isDark ? "rgba(220,38,38,0.2)" : "#FEF2F2",
+      text: isDark ? "#F87171" : "#DC2626",
+    },
   };
 
   return (
@@ -641,11 +680,21 @@ function OrdersTab({ orders, isDark }: { orders: Order[]; isDark: boolean }) {
                 <Text className="text-gray-900 dark:text-white font-bold text-sm">
                   {o.id}
                 </Text>
+                {/* ── Status badge — inline style, no dynamic className ── */}
                 <View
-                  className={`px-2 py-0.5 rounded-full ${statusBg[o.orderStatus]}`}
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 999,
+                    backgroundColor: statusStyles[o.orderStatus].bg,
+                  }}
                 >
                   <Text
-                    className={`text-[11px] font-bold ${statusText[o.orderStatus]}`}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "700",
+                      color: statusStyles[o.orderStatus].text,
+                    }}
                   >
                     {o.orderStatus}
                   </Text>
@@ -694,7 +743,6 @@ export default function AnalyticsScreen() {
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ── Load ALL orders from DB once; period filter is done in-memory ──────────
   const loadOrders = useCallback(async () => {
     setLoading(true);
     try {
@@ -717,7 +765,6 @@ export default function AnalyticsScreen() {
     loadOrders();
   }, [loadOrders]);
 
-  // ── Period filter (in-memory, instant) ────────────────────────────────────
   const filteredOrders = useMemo(() => {
     const today = todayStr();
     const yesterday = daysAgoStr(1);
@@ -747,7 +794,7 @@ export default function AnalyticsScreen() {
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-800">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* ── Header ── */}
       <View className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-5 pt-6 pb-0">
         <View className="flex-row items-center justify-between mb-4">
           <View>
@@ -761,7 +808,6 @@ export default function AnalyticsScreen() {
             </Text>
           </View>
           <View className="flex-row items-center gap-2">
-            {/* Refresh button */}
             <Pressable
               onPress={loadOrders}
               className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 items-center justify-center"
@@ -782,24 +828,39 @@ export default function AnalyticsScreen() {
           </View>
         </View>
 
-        {/* Period selector */}
+        {/* Period selector — inline styles to avoid dynamic className crash */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="mb-4 -mx-1"
+          style={{ marginBottom: 16, marginHorizontal: -4 }}
         >
           {periods.map((p) => (
             <Pressable
               key={p.key}
               onPress={() => setPeriod(p.key)}
-              className={`mr-2 px-4 py-2 rounded-full border ${
-                period === p.key
-                  ? "bg-blue-600 border-blue-600"
-                  : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-              }`}
+              style={{
+                marginRight: 8,
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 999,
+                borderWidth: 1,
+                backgroundColor:
+                  period === p.key ? "#2563EB" : isDark ? "#1F2937" : "#ffffff",
+                borderColor:
+                  period === p.key ? "#2563EB" : isDark ? "#374151" : "#E5E7EB",
+              }}
             >
               <Text
-                className={`text-sm font-bold ${period === p.key ? "text-white" : "text-gray-600 dark:text-gray-300"}`}
+                style={{
+                  fontSize: 14,
+                  fontWeight: "700",
+                  color:
+                    period === p.key
+                      ? "#ffffff"
+                      : isDark
+                        ? "#D1D5DB"
+                        : "#4B5563",
+                }}
               >
                 {p.label}
               </Text>
@@ -807,15 +868,24 @@ export default function AnalyticsScreen() {
           ))}
         </ScrollView>
 
-        {/* Tab bar */}
-        <View className="flex-row">
+        {/* Tab bar — inline styles for active indicator */}
+        <View style={{ flexDirection: "row" }}>
           {tabs.map((tab) => (
             <Pressable
               key={tab.key}
               onPress={() => setActiveTab(tab.key)}
-              className={`flex-1 items-center pb-3 border-b-2 ${activeTab === tab.key ? "border-blue-600" : "border-transparent"}`}
+              style={{
+                flex: 1,
+                alignItems: "center",
+                paddingBottom: 12,
+                borderBottomWidth: 2,
+                borderBottomColor:
+                  activeTab === tab.key ? "#2563EB" : "transparent",
+              }}
             >
-              <View className="flex-row items-center gap-1.5">
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+              >
                 <Ionicons
                   name={tab.icon}
                   size={15}
@@ -828,7 +898,18 @@ export default function AnalyticsScreen() {
                   }
                 />
                 <Text
-                  className={`text-sm font-bold ${activeTab === tab.key ? "text-blue-600 dark:text-blue-400" : "text-gray-400 dark:text-gray-500"}`}
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "700",
+                    color:
+                      activeTab === tab.key
+                        ? isDark
+                          ? "#60A5FA"
+                          : "#2563EB"
+                        : isDark
+                          ? "#6B7280"
+                          : "#9CA3AF",
+                  }}
                 >
                   {tab.label}
                 </Text>
@@ -838,7 +919,7 @@ export default function AnalyticsScreen() {
         </View>
       </View>
 
-      {/* ── Loading ─────────────────────────────────────────────────────────── */}
+      {/* ── Loading ── */}
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator

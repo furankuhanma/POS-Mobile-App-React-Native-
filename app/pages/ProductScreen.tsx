@@ -56,7 +56,6 @@ function SuccessToast({
 }
 
 // ─── Product Image ─────────────────────────────────────────────────────────────
-// Shared component: shows image_uri if available, otherwise food icon placeholder.
 
 function ProductImage({
   uri,
@@ -151,7 +150,7 @@ export default function ProductScreen() {
     loadProducts();
   }, [loadProducts]);
 
-  // ── Derived categories from DB data ─────────────────────────────────────
+  // ── Derived categories ───────────────────────────────────────────────────
   const categories = useMemo(() => {
     const catSet = new Set(products.map((p) => p.category_name));
     return ["All", ...Array.from(catSet).sort()];
@@ -194,7 +193,7 @@ export default function ProductScreen() {
           variantName: variant?.variant_name ?? product.name,
           price: variant?.price ?? 0,
           qty: 1,
-          imageUri: (product as any).image_uri ?? undefined, // ✅ carry image into cart
+          imageUri: product.image_uri ?? undefined,
         },
       ];
     });
@@ -246,9 +245,14 @@ export default function ProductScreen() {
     setSuccessOrderId(orderId);
   };
 
+  // ── Colors (resolved once per render, safe for inline styles) ────────────
+  const borderColor = isDark ? "#1F2937" : "#F3F4F6";
+  const bgScreen = isDark ? "#030712" : "#F4F7F4";
+  const bgCart = isDark ? "#111827" : "#ffffff";
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <View className="flex-1 bg-[#F4F7F4] dark:bg-gray-950">
+    <View style={{ flex: 1, backgroundColor: bgScreen }}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {successOrderId && (
@@ -258,43 +262,93 @@ export default function ProductScreen() {
         />
       )}
 
-      <View className={`flex-1 ${isLandscape ? "flex-row" : "flex-col"}`}>
+      <View style={{ flex: 1, flexDirection: isLandscape ? "row" : "column" }}>
         {/* ── MENU SECTION ── */}
         {!isExpanded && (
-          <View className={`${isLandscape ? "flex-[0.65]" : "flex-1"} p-4`}>
+          <View style={{ flex: isLandscape ? 0.65 : 1, padding: 16 }}>
             {/* Search */}
-            <View className="flex-row items-center mb-4 space-x-2">
-              <View className="flex-row items-center flex-1 px-4 py-2 bg-white border border-gray-100 shadow-sm dark:bg-gray-800 rounded-2xl dark:border-gray-700">
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  flex: 1,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  backgroundColor: isDark ? "#1F2937" : "#ffffff",
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#F3F4F6",
+                  borderRadius: 16,
+                  shadowColor: "#000",
+                  shadowOpacity: 0.05,
+                  shadowRadius: 4,
+                  elevation: 1,
+                }}
+              >
                 <Ionicons name="search" size={18} color="#9CA3AF" />
                 <TextInput
                   placeholder="Search products..."
                   value={search}
                   onChangeText={setSearch}
                   placeholderTextColor="#9CA3AF"
-                  className="flex-1 h-10 ml-2 outline-none dark:text-white"
+                  style={{
+                    flex: 1,
+                    height: 40,
+                    marginLeft: 8,
+                    color: isDark ? "#ffffff" : "#111827",
+                  }}
                 />
               </View>
             </View>
 
             {/* Category chips */}
-            <View className="h-16 mb-4">
+            <View style={{ height: 64, marginBottom: 16 }}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {categories.map((cat) => (
                   <TouchableOpacity
                     key={cat}
                     onPress={() => setActiveCat(cat)}
-                    className={`mr-3 px-4 py-3 rounded-3xl items-center justify-center border ${
-                      activeCat === cat
-                        ? "bg-green-100 border-green-600 dark:bg-green-900/30"
-                        : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700"
-                    }`}
+                    style={{
+                      marginRight: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      borderRadius: 24,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: 1,
+                      backgroundColor:
+                        activeCat === cat
+                          ? isDark
+                            ? "rgba(20,83,45,0.3)"
+                            : "#DCFCE7"
+                          : isDark
+                            ? "#1F2937"
+                            : "#ffffff",
+                      borderColor:
+                        activeCat === cat
+                          ? "#16A34A"
+                          : isDark
+                            ? "#374151"
+                            : "#F3F4F6",
+                    }}
                   >
                     <Text
-                      className={`text-xs font-bold ${
-                        activeCat === cat
-                          ? "text-green-800 dark:text-green-400"
-                          : "text-gray-500"
-                      }`}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "700",
+                        color:
+                          activeCat === cat
+                            ? isDark
+                              ? "#4ADE80"
+                              : "#166534"
+                            : "#6B7280",
+                      }}
                     >
                       {cat}
                     </Text>
@@ -305,15 +359,27 @@ export default function ProductScreen() {
 
             {/* Product grid */}
             {loadingProducts ? (
-              <View className="items-center justify-center flex-1">
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 <ActivityIndicator size="large" color="#16A34A" />
-                <Text className="mt-3 text-sm text-gray-400">
+                <Text style={{ marginTop: 12, fontSize: 14, color: "#9CA3AF" }}>
                   Loading products…
                 </Text>
               </View>
             ) : (
               <ScrollView showsVerticalScrollIndicator={false}>
-                <View className="flex-row flex-wrap justify-between">
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    justifyContent: "space-between",
+                  }}
+                >
                   {filtered.map((product) => {
                     const defaultVariant = product.variants[0] ?? null;
                     const displayPrice = defaultVariant?.price ?? 0;
@@ -322,27 +388,46 @@ export default function ProductScreen() {
                       <TouchableOpacity
                         key={product.id}
                         onPress={() => handleProductPress(product)}
-                        style={{ width: isLandscape ? "31%" : "48%" }}
-                        className="p-2 mb-4 bg-white shadow-sm dark:bg-gray-800 rounded-3xl"
+                        style={{
+                          width: isLandscape ? "31%" : "48%",
+                          padding: 8,
+                          marginBottom: 16,
+                          backgroundColor: isDark ? "#1F2937" : "#ffffff",
+                          borderRadius: 24,
+                          shadowColor: "#000",
+                          shadowOpacity: 0.06,
+                          shadowRadius: 4,
+                          elevation: 2,
+                        }}
                       >
-                        {/* ✅ Shows saved image, falls back to food icon */}
                         <ProductImage
-                          uri={(product as any).image_uri}
+                          uri={product.image_uri}
                           size="card"
                           isDark={isDark}
                         />
                         <Text
-                          className="font-bold text-[11px] mt-2 dark:text-white"
+                          style={{
+                            fontWeight: "700",
+                            fontSize: 11,
+                            marginTop: 8,
+                            color: isDark ? "#ffffff" : "#111827",
+                          }}
                           numberOfLines={1}
                         >
                           {product.name}
                         </Text>
                         {product.variants.length > 1 && (
-                          <Text className="text-[9px] text-gray-400 mb-0.5">
+                          <Text
+                            style={{
+                              fontSize: 9,
+                              color: "#9CA3AF",
+                              marginBottom: 2,
+                            }}
+                          >
                             {product.variants.length} variants
                           </Text>
                         )}
-                        <Text className="font-bold text-green-700">
+                        <Text style={{ fontWeight: "700", color: "#15803D" }}>
                           ₱{displayPrice.toFixed(2)}
                         </Text>
                       </TouchableOpacity>
@@ -350,8 +435,10 @@ export default function ProductScreen() {
                   })}
 
                   {filtered.length === 0 && !loadingProducts && (
-                    <View className="items-center flex-1 pt-16">
-                      <Text className="text-sm text-gray-400">
+                    <View
+                      style={{ flex: 1, alignItems: "center", paddingTop: 64 }}
+                    >
+                      <Text style={{ fontSize: 14, color: "#9CA3AF" }}>
                         No products found
                       </Text>
                     </View>
@@ -364,25 +451,38 @@ export default function ProductScreen() {
 
         {/* ── CART SECTION ── */}
         <View
-          className={`bg-white dark:bg-gray-900 ${
+          style={[
+            { backgroundColor: bgCart },
             isLandscape
-              ? "flex-[0.35] border-l border-gray-100 dark:border-gray-800"
+              ? { flex: 0.35, borderLeftWidth: 1, borderColor }
               : isExpanded
-                ? "flex-1"
-                : "h-[45%] border-t border-gray-100 dark:border-gray-800"
-          }`}
+                ? { flex: 1 }
+                : { height: "45%", borderTopWidth: 1, borderColor },
+          ]}
         >
           {/* Cart header */}
           <View
-            className={`flex-row items-center justify-between p-4 border-b ${
-              selectionMode
-                ? "bg-red-50 dark:bg-red-900/20 border-red-200"
-                : "border-gray-50 dark:border-gray-800"
-            }`}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: selectionMode
+                ? "#FECACA"
+                : isDark
+                  ? "#1F2937"
+                  : "#F9FAFB",
+              backgroundColor: selectionMode
+                ? isDark
+                  ? "rgba(153,27,27,0.2)"
+                  : "#FEF2F2"
+                : "transparent",
+            }}
           >
             {selectionMode ? (
               <>
-                <View className="flex-row items-center">
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <TouchableOpacity
                     onPress={() => {
                       setSelectionMode(false);
@@ -391,13 +491,28 @@ export default function ProductScreen() {
                   >
                     <Ionicons name="close" size={24} color="#ef4444" />
                   </TouchableOpacity>
-                  <Text className="ml-3 text-lg font-bold text-red-600">
+                  <Text
+                    style={{
+                      marginLeft: 12,
+                      fontSize: 18,
+                      fontWeight: "700",
+                      color: "#DC2626",
+                    }}
+                  >
                     {selectedIds.length} Selected
                   </Text>
                 </View>
                 <TouchableOpacity
                   onPress={deleteSelected}
-                  className="p-2 bg-red-500 shadow-md rounded-xl"
+                  style={{
+                    padding: 8,
+                    backgroundColor: "#EF4444",
+                    borderRadius: 12,
+                    shadowColor: "#000",
+                    shadowOpacity: 0.15,
+                    shadowRadius: 4,
+                    elevation: 3,
+                  }}
                 >
                   <Feather name="trash-2" size={20} color="white" />
                 </TouchableOpacity>
@@ -405,17 +520,23 @@ export default function ProductScreen() {
             ) : (
               <>
                 <View>
-                  <Text className="text-lg font-bold dark:text-white">
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "700",
+                      color: isDark ? "#ffffff" : "#111827",
+                    }}
+                  >
                     Current Order
                   </Text>
-                  <Text className="text-xs text-gray-400">
+                  <Text style={{ fontSize: 12, color: "#9CA3AF" }}>
                     {cart.reduce((s, i) => s + i.qty, 0)} Items
                   </Text>
                 </View>
                 {!isLandscape && (
                   <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
                     <Ionicons
-                      name={isExpanded ? "chevron-down" : "expand"}
+                      name={isExpanded ? "contract-outline" : "expand-outline"}
                       size={22}
                       color="#009245"
                     />
@@ -426,15 +547,21 @@ export default function ProductScreen() {
           </View>
 
           {/* Cart items */}
-          <ScrollView className="flex-1 px-4 mt-4">
+          <ScrollView style={{ flex: 1, paddingHorizontal: 16, marginTop: 16 }}>
             {cart.length === 0 && (
-              <View className="items-center pt-10">
+              <View style={{ alignItems: "center", paddingTop: 40 }}>
                 <Ionicons
                   name="cart-outline"
                   size={40}
                   color={isDark ? "#374151" : "#E5E7EB"}
                 />
-                <Text className="mt-2 text-sm text-gray-300 dark:text-gray-600">
+                <Text
+                  style={{
+                    marginTop: 8,
+                    fontSize: 14,
+                    color: isDark ? "#4B5563" : "#D1D5DB",
+                  }}
+                >
                   Cart is empty
                 </Text>
               </View>
@@ -452,41 +579,82 @@ export default function ProductScreen() {
                     toggleSelection(key);
                   }}
                   onPress={() => selectionMode && toggleSelection(key)}
-                  className={`flex-row items-center p-3 mb-4 rounded-2xl border shadow-sm ${
-                    isSelected
-                      ? "bg-red-50 dark:bg-red-900/20 border-red-300"
-                      : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700"
-                  }`}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: 12,
+                    marginBottom: 16,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    shadowColor: "#000",
+                    shadowOpacity: 0.05,
+                    shadowRadius: 4,
+                    elevation: 1,
+                    backgroundColor: isSelected
+                      ? isDark
+                        ? "rgba(153,27,27,0.2)"
+                        : "#FEF2F2"
+                      : isDark
+                        ? "#1F2937"
+                        : "#ffffff",
+                    borderColor: isSelected
+                      ? "#FCA5A5"
+                      : isDark
+                        ? "#374151"
+                        : "#F3F4F6",
+                  }}
                 >
-                  {/* ✅ Shows product image in cart too */}
                   <ProductImage
-                    uri={(item as any).imageUri}
+                    uri={item.imageUri}
                     size="thumb"
                     isDark={isDark}
                   />
 
-                  <View className="flex-1 mx-3">
+                  <View style={{ flex: 1, marginHorizontal: 12 }}>
                     <Text
-                      className="text-sm font-bold dark:text-white"
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "700",
+                        color: isDark ? "#ffffff" : "#111827",
+                      }}
                       numberOfLines={1}
                     >
                       {item.name}
                     </Text>
                     {item.variantName !== item.name && (
-                      <Text className="text-xs text-gray-400">
+                      <Text style={{ fontSize: 12, color: "#9CA3AF" }}>
                         {item.variantName}
                       </Text>
                     )}
-                    <Text className="text-sm font-bold text-green-600">
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "700",
+                        color: "#16A34A",
+                      }}
+                    >
                       ₱{item.price.toFixed(2)}
                     </Text>
                   </View>
 
                   {!selectionMode && (
-                    <View className="flex-row items-center gap-2">
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
                       <TouchableOpacity
                         onPress={() => updateQty(key, -1)}
-                        className="items-center justify-center bg-gray-100 rounded-full w-7 h-7 dark:bg-gray-700"
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 14,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: isDark ? "#374151" : "#F3F4F6",
+                        }}
                       >
                         <Ionicons
                           name="remove"
@@ -494,12 +662,26 @@ export default function ProductScreen() {
                           color={isDark ? "white" : "black"}
                         />
                       </TouchableOpacity>
-                      <Text className="w-5 font-bold text-center dark:text-white">
+                      <Text
+                        style={{
+                          width: 20,
+                          fontWeight: "700",
+                          textAlign: "center",
+                          color: isDark ? "#ffffff" : "#111827",
+                        }}
+                      >
                         {item.qty}
                       </Text>
                       <TouchableOpacity
                         onPress={() => updateQty(key, 1)}
-                        className="items-center justify-center bg-green-500 rounded-full w-7 h-7"
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 14,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: "#22C55E",
+                        }}
                       >
                         <Ionicons name="add" size={16} color="white" />
                       </TouchableOpacity>
@@ -519,42 +701,94 @@ export default function ProductScreen() {
           </ScrollView>
 
           {/* Summary + Place Order */}
-          <View className="px-4 pt-1 pb-2">
-            <View className="flex-row justify-between mb-1">
-              <Text className="text-sm text-gray-400">Subtotal</Text>
-              <Text className="text-sm font-bold dark:text-white">
+          <View
+            style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginBottom: 4,
+              }}
+            >
+              <Text style={{ fontSize: 14, color: "#9CA3AF" }}>Subtotal</Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "700",
+                  color: isDark ? "#ffffff" : "#111827",
+                }}
+              >
                 ₱{subtotal.toFixed(2)}
               </Text>
             </View>
-            <View className="flex-row justify-between mb-3">
-              <Text className="text-sm text-gray-400">Est. Tax (12%)</Text>
-              <Text className="text-sm font-bold dark:text-white">
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginBottom: 12,
+              }}
+            >
+              <Text style={{ fontSize: 14, color: "#9CA3AF" }}>
+                Est. Tax (12%)
+              </Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "700",
+                  color: isDark ? "#ffffff" : "#111827",
+                }}
+              >
                 ₱{tax.toFixed(2)}
               </Text>
             </View>
-            <View className="flex-row justify-between pt-2 mb-4 border-t border-gray-100 dark:border-gray-800">
-              <Text className="text-base font-bold dark:text-white">
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                paddingTop: 8,
+                marginBottom: 16,
+                borderTopWidth: 1,
+                borderTopColor: isDark ? "#1F2937" : "#F3F4F6",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: isDark ? "#ffffff" : "#111827",
+                }}
+              >
                 Est. Total
               </Text>
-              <Text className="text-base font-bold text-green-600">
+              <Text
+                style={{ fontSize: 16, fontWeight: "700", color: "#16A34A" }}
+              >
                 ₱{(subtotal + tax).toFixed(2)}
               </Text>
             </View>
 
             <TouchableOpacity
               onPress={() => cart.length > 0 && setShowCheckout(true)}
-              className={`py-4 rounded-2xl items-center ${
-                cart.length > 0
-                  ? "bg-green-500"
-                  : "bg-gray-200 dark:bg-gray-700"
-              }`}
+              style={{
+                paddingVertical: 16,
+                borderRadius: 16,
+                alignItems: "center",
+                backgroundColor:
+                  cart.length > 0 ? "#22C55E" : isDark ? "#374151" : "#E5E7EB",
+              }}
             >
               <Text
-                className={`font-bold text-base ${
-                  cart.length > 0
-                    ? "text-white"
-                    : "text-gray-400 dark:text-gray-500"
-                }`}
+                style={{
+                  fontWeight: "700",
+                  fontSize: 16,
+                  color:
+                    cart.length > 0
+                      ? "#ffffff"
+                      : isDark
+                        ? "#6B7280"
+                        : "#9CA3AF",
+                }}
               >
                 {cart.length > 0 ? "Place Order →" : "Add items to order"}
               </Text>
