@@ -6,6 +6,7 @@ import { Pressable, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SidebarProvider, useSidebar } from "../context/SidebarContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
+import { SyncStatusButton } from "../components/SyncButton";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -89,8 +90,8 @@ const MobileLayout = ({ children }: LayoutProps) => {
               <View className="w-9 h-9 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center mr-3">
                 <Ionicons name="storefront" size={20} color="#fff" />
               </View>
-              <Text className="text-gray-900 dark:text-white font-bold text-xl">
-                POS
+              <Text className="text-gray-900 dark:text-white font-bold text-s">
+                Janzehn's Grill House
               </Text>
             </View>
             <Pressable
@@ -176,26 +177,28 @@ const MobileLayout = ({ children }: LayoutProps) => {
             </Pressable>
           </View>
 
-          {/* ── Sidebar Footer — Dark Mode Toggle ── */}
-          <View
-            className="px-3"
-            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
-          >
-            <View className="border-t border-gray-200 dark:border-gray-700 mb-2" />
-            <Pressable
-              onPress={toggleColorScheme}
-              className="flex-row items-center px-3 py-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
-            >
-              <Ionicons
-                name={isDark ? "sunny-outline" : "moon-outline"}
-                size={22}
-                color={iconColor}
-                style={{ marginRight: 12 }}
-              />
-              <Text className="text-gray-900 dark:text-white font-medium text-base">
-                {isDark ? "Light Mode" : "Dark Mode"}
-              </Text>
-            </Pressable>
+          {/* ── Mobile Sidebar Footer ── */}
+          <View style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+            {/* Sync button — sits above dark mode toggle */}
+            <SyncStatusButton />
+
+            {/* Dark Mode Toggle */}
+            <View className="px-3">
+              <Pressable
+                onPress={toggleColorScheme}
+                className="flex-row items-center px-3 py-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+              >
+                <Ionicons
+                  name={isDark ? "sunny-outline" : "moon-outline"}
+                  size={22}
+                  color={iconColor}
+                  style={{ marginRight: 12 }}
+                />
+                <Text className="text-gray-900 dark:text-white font-medium text-base">
+                  {isDark ? "Light Mode" : "Dark Mode"}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       )}
@@ -219,8 +222,8 @@ const DesktopLayout = ({ children }: LayoutProps) => {
               <View className="w-9 h-9 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center mr-3">
                 <Ionicons name="storefront" size={20} color="#fff" />
               </View>
-              <Text className="text-gray-900 dark:text-white font-bold text-xl">
-                POS
+              <Text className="text-gray-900 dark:text-white font-bold text-s">
+                Janzehn's Grill House
               </Text>
             </View>
           </View>
@@ -288,23 +291,28 @@ const DesktopLayout = ({ children }: LayoutProps) => {
           </View>
         </View>
 
-        {/* ── Desktop Footer — Dark Mode Toggle ── */}
-        <View className="px-3">
-          <View className="border-t border-gray-200 dark:border-gray-700 mb-2" />
-          <Pressable
-            onPress={toggleColorScheme}
-            className="flex-row items-center px-3 py-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
-          >
-            <Ionicons
-              name={isDark ? "sunny-outline" : "moon-outline"}
-              size={22}
-              color={iconColor}
-              style={{ marginRight: 12 }}
-            />
-            <Text className="text-gray-900 dark:text-white font-medium text-base">
-              {isDark ? "Light Mode" : "Dark Mode"}
-            </Text>
-          </Pressable>
+        {/* ── Desktop Sidebar Footer ── */}
+        <View>
+          {/* Sync button — sits above dark mode toggle */}
+          <SyncStatusButton />
+
+          {/* Dark Mode Toggle */}
+          <View className="px-3">
+            <Pressable
+              onPress={toggleColorScheme}
+              className="flex-row items-center px-3 py-3 rounded-lg active:bg-gray-100 dark:active:bg-gray-800"
+            >
+              <Ionicons
+                name={isDark ? "sunny-outline" : "moon-outline"}
+                size={22}
+                color={iconColor}
+                style={{ marginRight: 12 }}
+              />
+              <Text className="text-gray-900 dark:text-white font-medium text-base">
+                {isDark ? "Light Mode" : "Dark Mode"}
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
