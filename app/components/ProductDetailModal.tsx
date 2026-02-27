@@ -1,17 +1,17 @@
-import {
-  Modal,
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  Image,
-  Alert,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useColorScheme } from "nativewind";
+import {
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { productsRepo } from "../data/Products";
 import type { Product } from "../types/inventory";
 import { formatCurrency, formatDate } from "../types/inventory";
-import { productsRepo } from "../data/Products";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,7 +21,7 @@ interface ProductDetailModalProps {
   product: Product | null;
   categoryName: string;
   onEdit: () => void;
-  onDeleted: () => void; // ← replaces onViewHistory, called after successful delete
+  onDeleted: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -39,11 +39,6 @@ export function ProductDetailModal({
 
   if (!product) return null;
 
-  const profitMargin = product.sellingPrice - product.costPrice;
-  const profitPercentage =
-    product.costPrice > 0
-      ? ((profitMargin / product.costPrice) * 100).toFixed(1)
-      : "0.0";
   const hasVariants = product.variants && product.variants.length > 0;
 
   const handleDelete = () => {
@@ -59,7 +54,7 @@ export function ProductDetailModal({
             try {
               await productsRepo.delete(parseInt(product.id, 10));
               onClose();
-              onDeleted(); // triggers loadData() in InventoryScreen
+              onDeleted();
             } catch (e) {
               console.error("[ProductDetailModal] delete error", e);
               Alert.alert(
@@ -121,35 +116,17 @@ export function ProductDetailModal({
               )}
             </View>
 
-            {/* Pricing Info */}
+            {/* Pricing Info — selling price only */}
             <View className="mb-6">
               <Text className="text-gray-700 dark:text-gray-300 font-bold text-sm mb-3">
                 Pricing
               </Text>
-              <View className="flex-row gap-3 mb-3">
-                <View className="flex-1 bg-red-50 dark:bg-red-950/30 rounded-xl p-3">
-                  <Text className="text-red-600 dark:text-red-400 text-xs font-bold mb-1">
-                    COST PRICE
-                  </Text>
-                  <Text className="text-red-900 dark:text-red-100 font-black text-xl">
-                    {formatCurrency(product.costPrice)}
-                  </Text>
-                </View>
-                <View className="flex-1 bg-green-50 dark:bg-green-950/30 rounded-xl p-3">
-                  <Text className="text-green-600 dark:text-green-400 text-xs font-bold mb-1">
-                    SELLING PRICE
-                  </Text>
-                  <Text className="text-green-900 dark:text-green-100 font-black text-xl">
-                    {formatCurrency(product.sellingPrice)}
-                  </Text>
-                </View>
-              </View>
-              <View className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-3">
-                <Text className="text-blue-600 dark:text-blue-400 text-xs font-bold mb-1">
-                  PROFIT MARGIN
+              <View className="bg-green-50 dark:bg-green-950/30 rounded-xl p-3">
+                <Text className="text-green-600 dark:text-green-400 text-xs font-bold mb-1">
+                  SELLING PRICE
                 </Text>
-                <Text className="text-blue-900 dark:text-blue-100 font-black text-xl">
-                  {formatCurrency(profitMargin)} ({profitPercentage}%)
+                <Text className="text-green-900 dark:text-green-100 font-black text-xl">
+                  {formatCurrency(product.sellingPrice)}
                 </Text>
               </View>
             </View>
@@ -172,13 +149,6 @@ export function ProductDetailModal({
                       <Text className="text-gray-700 dark:text-gray-300 font-semibold text-sm">
                         {formatCurrency(
                           product.sellingPrice + variant.additionalPrice,
-                        )}
-                        {variant.additionalPrice !== 0 && (
-                          <Text className="text-gray-400 dark:text-gray-500">
-                            {" "}
-                            ({variant.additionalPrice > 0 ? "+" : ""}
-                            {formatCurrency(variant.additionalPrice)})
-                          </Text>
                         )}
                       </Text>
                     </View>
@@ -252,7 +222,6 @@ export function ProductDetailModal({
           {/* Action Buttons */}
           <View className="px-5 py-4 border-t border-gray-200 dark:border-gray-700">
             <View className="flex-row gap-2">
-              {/* Edit */}
               <Pressable
                 onPress={onEdit}
                 className="flex-1 bg-blue-600 rounded-xl py-3 flex-row items-center justify-center gap-2"
@@ -261,7 +230,6 @@ export function ProductDetailModal({
                 <Text className="text-white font-bold text-sm">Edit</Text>
               </Pressable>
 
-              {/* Delete */}
               <Pressable
                 onPress={handleDelete}
                 className="flex-1 bg-red-50 dark:bg-red-950/40 border-2 border-red-200 dark:border-red-800 rounded-xl py-3 flex-row items-center justify-center gap-2"

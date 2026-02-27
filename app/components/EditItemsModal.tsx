@@ -2,19 +2,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { useColorScheme } from "nativewind";
 import { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  Dimensions,
   Modal,
   Pressable,
   ScrollView,
-  View,
   Text,
   TextInput,
-  Dimensions,
+  View,
 } from "react-native";
+import { productsRepo } from "../data/Products";
+import type { ProductWithVariants } from "../types/types";
 import { Order, OrderItem, fmt } from "./OrderRow";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const recalcOrder = (
   items: OrderItem[],
@@ -28,6 +31,223 @@ const recalcOrder = (
   );
   return { subtotal, tax, total };
 };
+
+// ─── Product Picker ───────────────────────────────────────────────────────────
+// A searchable list of products+variants from the database.
+
+interface ProductPickerProps {
+  products: ProductWithVariants[];
+  onAdd: (item: { name: string; unitPrice: number; variantId: number }) => void;
+  isDark: boolean;
+}
+
+function ProductPicker({ products, onAdd, isDark }: ProductPickerProps) {
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return products;
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.variants.some((v) => v.variant_name.toLowerCase().includes(q)),
+    );
+  }, [search, products]);
+
+  return (
+    <View>
+      {/* Search */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: isDark ? "#111827" : "#fff",
+          borderWidth: 1,
+          borderColor: isDark ? "#374151" : "#E5E7EB",
+          borderRadius: 10,
+          paddingHorizontal: 10,
+          marginBottom: 10,
+          gap: 8,
+        }}
+      >
+        <Ionicons
+          name="search-outline"
+          size={15}
+          color={isDark ? "#6B7280" : "#9CA3AF"}
+        />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search products…"
+          placeholderTextColor={isDark ? "#4B5563" : "#9CA3AF"}
+          style={{
+            flex: 1,
+            paddingVertical: 9,
+            fontSize: 13,
+            color: isDark ? "#fff" : "#111",
+          }}
+        />
+        {search.length > 0 && (
+          <Pressable onPress={() => setSearch("")}>
+            <Ionicons
+              name="close-circle"
+              size={15}
+              color={isDark ? "#6B7280" : "#9CA3AF"}
+            />
+          </Pressable>
+        )}
+      </View>
+
+      {filtered.length === 0 && (
+        <Text
+          style={{
+            textAlign: "center",
+            color: isDark ? "#6B7280" : "#9CA3AF",
+            fontSize: 13,
+            paddingVertical: 12,
+          }}
+        >
+          No products found
+        </Text>
+      )}
+
+      {/* Product list */}
+      {filtered.map((product) => (
+        <View key={product.id} style={{ marginBottom: 6 }}>
+          {/* Product row — tap to expand variants */}
+          <Pressable
+            onPress={() =>
+              setExpanded(expanded === product.id ? null : product.id)
+            }
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: isDark ? "#1F2937" : "#F9FAFB",
+              borderRadius: 10,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              borderWidth: 1,
+              borderColor: isDark ? "#374151" : "#E5E7EB",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                color: isDark ? "#F3F4F6" : "#111827",
+                flex: 1,
+              }}
+            >
+              {product.name}
+            </Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
+              <Text
+                style={{ fontSize: 11, color: isDark ? "#6B7280" : "#9CA3AF" }}
+              >
+                {product.variants.length} variant
+                {product.variants.length !== 1 ? "s" : ""}
+              </Text>
+              <Ionicons
+                name={expanded === product.id ? "chevron-up" : "chevron-down"}
+                size={14}
+                color={isDark ? "#6B7280" : "#9CA3AF"}
+              />
+            </View>
+          </Pressable>
+
+          {/* Variants — only shown when expanded */}
+          {expanded === product.id && (
+            <View
+              style={{
+                backgroundColor: isDark ? "#111827" : "#fff",
+                borderWidth: 1,
+                borderTopWidth: 0,
+                borderColor: isDark ? "#374151" : "#E5E7EB",
+                borderBottomLeftRadius: 10,
+                borderBottomRightRadius: 10,
+                overflow: "hidden",
+              }}
+            >
+              {product.variants.map((variant, idx) => (
+                <Pressable
+                  key={variant.id}
+                  onPress={() =>
+                    onAdd({
+                      name:
+                        product.variants.length === 1
+                          ? product.name
+                          : `${product.name} (${variant.variant_name})`,
+                      unitPrice: variant.price,
+                      variantId: variant.id,
+                    })
+                  }
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
+                    borderTopWidth: idx === 0 ? 0 : 1,
+                    borderTopColor: isDark ? "#1F2937" : "#F3F4F6",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: isDark ? "#D1D5DB" : "#374151",
+                      flex: 1,
+                    }}
+                  >
+                    {variant.variant_name}
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "700",
+                        color: isDark ? "#93C5FD" : "#2563EB",
+                      }}
+                    >
+                      {fmt(variant.price)}
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: "#2563EB",
+                        borderRadius: 6,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: "700",
+                          color: "#fff",
+                        }}
+                      >
+                        + Add
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -46,20 +266,41 @@ export function EditItemsModal({
 }: EditItemsModalProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
-  const [editItems, setEditItems] = useState<OrderItem[]>([]);
-  const [newItemName, setNewItemName] = useState("");
-  const [newItemPrice, setNewItemPrice] = useState("");
-  const [newItemQty, setNewItemQty] = useState("1");
 
+  const [editItems, setEditItems] = useState<OrderItem[]>([]);
+  const [products, setProducts] = useState<ProductWithVariants[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+
+  // ── Totals preview ─────────────────────────────────────────────────────────
+  // MUST be before any early return to comply with Rules of Hooks.
+  const previewTotals = useMemo(
+    () =>
+      order
+        ? recalcOrder(editItems, order.discount, order.serviceCharge)
+        : { subtotal: 0, tax: 0, total: 0 },
+    [editItems, order],
+  );
+
+  // Early return AFTER all hooks
   if (!order) return null;
 
-  const handleShow = () => {
+  // ── Load products from DB when modal opens ─────────────────────────────────
+  const handleShow = async () => {
     setEditItems(order.items.map((i) => ({ ...i })));
-    setNewItemName("");
-    setNewItemPrice("");
-    setNewItemQty("1");
+    setShowPicker(false);
+    setLoading(true);
+    try {
+      const data = await productsRepo.getAllWithVariants();
+      setProducts(data);
+    } catch (e) {
+      console.error("[EditItemsModal] Failed to load products:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // ── Quantity stepper ───────────────────────────────────────────────────────
   const updateQty = (id: string, delta: number) => {
     setEditItems((prev) =>
       prev
@@ -70,52 +311,44 @@ export function EditItemsModal({
     );
   };
 
-  const updatePrice = (id: string, val: string) => {
-    const p = parseFloat(val);
-    if (isNaN(p) || p < 0) return;
-    setEditItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, unitPrice: p } : i)),
-    );
-  };
-
-  const updateName = (id: string, val: string) => {
-    setEditItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, name: val } : i)),
-    );
-  };
-
-  const updateModifiers = (id: string, val: string) => {
-    setEditItems((prev) =>
-      prev.map((i) =>
-        i.id === id
-          ? { ...i, modifiers: val ? val.split(",").map((m) => m.trim()) : [] }
-          : i,
-      ),
-    );
-  };
-
+  // ── Remove item ────────────────────────────────────────────────────────────
   const removeItem = (id: string) => {
     setEditItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const addItem = () => {
-    const name = newItemName.trim();
-    const price = parseFloat(newItemPrice);
-    const qty = parseInt(newItemQty) || 1;
-    if (!name || isNaN(price) || price <= 0) return;
-    const newId = `new-${Date.now()}`;
-    setEditItems((prev) => [
-      ...prev,
-      { id: newId, name, quantity: qty, unitPrice: price, modifiers: [] },
-    ]);
-    setNewItemName("");
-    setNewItemPrice("");
-    setNewItemQty("1");
+  // ── Add from product picker ────────────────────────────────────────────────
+  const handleAddFromPicker = ({
+    name,
+    unitPrice,
+    variantId,
+  }: {
+    name: string;
+    unitPrice: number;
+    variantId: number;
+  }) => {
+    setEditItems((prev) => {
+      // If this variant already exists in the order, just increment qty
+      const existing = prev.find(
+        (i) => i.id === `v-${variantId}` || i.name === name,
+      );
+      if (existing) {
+        return prev.map((i) =>
+          i.name === name ? { ...i, quantity: i.quantity + 1 } : i,
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: `v-${variantId}-${Date.now()}`,
+          name,
+          quantity: 1,
+          unitPrice,
+          modifiers: [],
+        },
+      ];
+    });
+    setShowPicker(false);
   };
-
-  const previewTotals = useMemo(() => {
-    return recalcOrder(editItems, order.discount, order.serviceCharge);
-  }, [editItems, order.discount, order.serviceCharge]);
 
   return (
     <Modal
@@ -134,7 +367,7 @@ export function EditItemsModal({
       >
         <View
           style={{
-            height: SCREEN_HEIGHT * 0.9,
+            height: SCREEN_HEIGHT * 0.92,
             backgroundColor: isDark ? "#111827" : "#FFFFFF",
             borderTopLeftRadius: 16,
             borderTopRightRadius: 16,
@@ -159,223 +392,354 @@ export function EditItemsModal({
             </Pressable>
           </View>
 
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-            showsVerticalScrollIndicator={true}
-          >
-            {/* Existing Items */}
-            <Text className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-3">
-              Items
-            </Text>
-
-            {editItems.length === 0 && (
-              <View className="items-center py-6 bg-gray-50 dark:bg-gray-800 rounded-xl mb-3">
-                <Ionicons
-                  name="cart-outline"
-                  size={28}
-                  color={isDark ? "#4B5563" : "#D1D5DB"}
-                />
-                <Text className="text-gray-400 dark:text-gray-500 text-sm mt-2">
-                  No items — add one below
-                </Text>
-              </View>
-            )}
-
-            {editItems.map((item, idx) => (
-              <View
-                key={item.id}
-                className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 mb-3 border border-gray-100 dark:border-gray-700"
+          {loading ? (
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <ActivityIndicator
+                size="large"
+                color={isDark ? "#3B82F6" : "#2563EB"}
+              />
+              <Text
+                style={{
+                  marginTop: 12,
+                  fontSize: 13,
+                  color: isDark ? "#9CA3AF" : "#6B7280",
+                }}
               >
-                {/* Item header: name + delete */}
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
-                    Item {idx + 1}
+                Loading products…
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* ── Current Items ── */}
+              <Text className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-3">
+                Current Items
+              </Text>
+
+              {editItems.length === 0 && (
+                <View className="items-center py-6 bg-gray-50 dark:bg-gray-800 rounded-xl mb-3">
+                  <Ionicons
+                    name="cart-outline"
+                    size={28}
+                    color={isDark ? "#4B5563" : "#D1D5DB"}
+                  />
+                  <Text className="text-gray-400 dark:text-gray-500 text-sm mt-2">
+                    No items — add one below
                   </Text>
-                  <Pressable
-                    onPress={() => removeItem(item.id)}
-                    className="bg-red-50 dark:bg-red-950 rounded-lg p-1.5"
-                  >
-                    <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                  </Pressable>
                 </View>
+              )}
 
-                {/* Name field */}
-                <Text className="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-1">
-                  Name
-                </Text>
-                <TextInput
-                  value={item.name}
-                  onChangeText={(v) => updateName(item.id, v)}
-                  placeholderTextColor={isDark ? "#374151" : "#D1D5DB"}
-                  className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white mb-2"
-                />
+              {editItems.map((item) => (
+                <View
+                  key={item.id}
+                  style={{
+                    backgroundColor: isDark ? "#1F2937" : "#F9FAFB",
+                    borderRadius: 12,
+                    padding: 12,
+                    marginBottom: 10,
+                    borderWidth: 1,
+                    borderColor: isDark ? "#374151" : "#E5E7EB",
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    {/* Name + price (read-only) */}
+                    <View style={{ flex: 1, marginRight: 12 }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "700",
+                          color: isDark ? "#F3F4F6" : "#111827",
+                        }}
+                        numberOfLines={2}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: isDark ? "#9CA3AF" : "#6B7280",
+                          marginTop: 2,
+                        }}
+                      >
+                        {fmt(item.unitPrice)} each ·{" "}
+                        <Text
+                          style={{
+                            fontWeight: "700",
+                            color: isDark ? "#D1D5DB" : "#374151",
+                          }}
+                        >
+                          {fmt(item.unitPrice * item.quantity)}
+                        </Text>
+                      </Text>
+                    </View>
 
-                {/* Price + Qty row */}
-                <View className="flex-row gap-2 mb-2">
-                  <View className="flex-1">
-                    <Text className="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-1">
-                      Unit Price (₱)
-                    </Text>
-                    <TextInput
-                      value={String(item.unitPrice)}
-                      onChangeText={(v) => updatePrice(item.id, v)}
-                      keyboardType="numeric"
-                      placeholderTextColor={isDark ? "#374151" : "#D1D5DB"}
-                      className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-1">
-                      Quantity
-                    </Text>
-                    <View className="flex-row items-center bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                    {/* Qty stepper */}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 2,
+                      }}
+                    >
                       <Pressable
                         onPress={() => updateQty(item.id, -1)}
-                        className="px-3 py-2 bg-gray-100 dark:bg-gray-600"
+                        style={{
+                          backgroundColor: isDark ? "#374151" : "#E5E7EB",
+                          borderRadius: 8,
+                          padding: 7,
+                        }}
                       >
                         <Ionicons
-                          name="remove"
+                          name={
+                            item.quantity === 1 ? "trash-outline" : "remove"
+                          }
                           size={14}
-                          color={isDark ? "#D1D5DB" : "#374151"}
+                          color={
+                            item.quantity === 1
+                              ? "#EF4444"
+                              : isDark
+                                ? "#D1D5DB"
+                                : "#374151"
+                          }
                         />
                       </Pressable>
-                      <Text className="flex-1 text-center text-sm font-bold text-gray-900 dark:text-white">
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "800",
+                          color: isDark ? "#fff" : "#111",
+                          minWidth: 28,
+                          textAlign: "center",
+                        }}
+                      >
                         {item.quantity}
                       </Text>
                       <Pressable
                         onPress={() => updateQty(item.id, 1)}
-                        className="px-3 py-2 bg-gray-100 dark:bg-gray-600"
+                        style={{
+                          backgroundColor: "#2563EB",
+                          borderRadius: 8,
+                          padding: 7,
+                        }}
                       >
-                        <Ionicons
-                          name="add"
-                          size={14}
-                          color={isDark ? "#D1D5DB" : "#374151"}
-                        />
+                        <Ionicons name="add" size={14} color="#fff" />
                       </Pressable>
                     </View>
                   </View>
                 </View>
-
-                {/* Modifiers */}
-                <Text className="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-1">
-                  Modifiers (comma-separated)
-                </Text>
-                <TextInput
-                  value={item.modifiers.join(", ")}
-                  onChangeText={(v) => updateModifiers(item.id, v)}
-                  placeholder="e.g. No ice, Extra sauce"
-                  placeholderTextColor={isDark ? "#374151" : "#D1D5DB"}
-                  className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
-                />
-
-                {/* Line total */}
-                <View className="flex-row justify-end mt-2">
-                  <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                    Line total:{" "}
-                    <Text className="text-gray-900 dark:text-white font-bold">
-                      {fmt(item.quantity * item.unitPrice)}
-                    </Text>
-                  </Text>
-                </View>
-              </View>
-            ))}
-
-            {/* Add New Item */}
-            <Text className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-3 mt-2">
-              Add New Item
-            </Text>
-            <View className="bg-blue-50 dark:bg-blue-950/50 rounded-xl p-3 border border-blue-100 dark:border-blue-900 mb-4">
-              <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                Name
-              </Text>
-              <TextInput
-                value={newItemName}
-                onChangeText={setNewItemName}
-                placeholder="e.g. Wagyu Burger"
-                placeholderTextColor={isDark ? "#374151" : "#D1D5DB"}
-                className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white mb-2"
-              />
-              <View className="flex-row gap-2 mb-3">
-                <View className="flex-1">
-                  <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Unit Price (₱)
-                  </Text>
-                  <TextInput
-                    value={newItemPrice}
-                    onChangeText={setNewItemPrice}
-                    keyboardType="numeric"
-                    placeholder="0.00"
-                    placeholderTextColor={isDark ? "#374151" : "#D1D5DB"}
-                    className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Quantity
-                  </Text>
-                  <TextInput
-                    value={newItemQty}
-                    onChangeText={setNewItemQty}
-                    keyboardType="numeric"
-                    placeholder="1"
-                    placeholderTextColor={isDark ? "#374151" : "#D1D5DB"}
-                    className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
-                  />
-                </View>
-              </View>
-              <Pressable
-                onPress={addItem}
-                className="flex-row items-center justify-center gap-2 bg-blue-600 rounded-xl py-2.5"
-              >
-                <Ionicons name="add-circle-outline" size={16} color="#fff" />
-                <Text className="text-white font-bold text-sm">Add Item</Text>
-              </Pressable>
-            </View>
-
-            {/* Preview Totals */}
-            <View className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 mb-4">
-              <Text className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-3">
-                Updated Totals Preview
-              </Text>
-              {[
-                { label: "Subtotal", value: previewTotals.subtotal },
-                { label: "Tax (12%)", value: previewTotals.tax },
-              ].map(({ label, value }) => (
-                <View key={label} className="flex-row justify-between mb-1.5">
-                  <Text className="text-gray-500 dark:text-gray-400 text-sm">
-                    {label}
-                  </Text>
-                  <Text className="text-gray-700 dark:text-gray-300 text-sm font-semibold">
-                    {fmt(value)}
-                  </Text>
-                </View>
               ))}
-              <View className="h-px bg-gray-200 dark:bg-gray-700 my-2" />
-              <View className="flex-row justify-between">
-                <Text className="text-gray-900 dark:text-white font-black text-sm">
-                  New Total
+
+              {/* ── Add from Menu ── */}
+              <Text className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mt-2 mb-3">
+                Add from Menu
+              </Text>
+
+              {!showPicker ? (
+                <Pressable
+                  onPress={() => setShowPicker(true)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    backgroundColor: isDark ? "#1E3A5F" : "#EFF6FF",
+                    borderWidth: 2,
+                    borderColor: "#3B82F6",
+                    borderRadius: 12,
+                    paddingVertical: 14,
+                    marginBottom: 16,
+                  }}
+                >
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={18}
+                    color="#2563EB"
+                  />
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "700",
+                      color: "#2563EB",
+                    }}
+                  >
+                    Browse Menu to Add Items
+                  </Text>
+                </Pressable>
+              ) : (
+                <View
+                  style={{
+                    backgroundColor: isDark ? "#1F2937" : "#F9FAFB",
+                    borderRadius: 12,
+                    padding: 12,
+                    marginBottom: 16,
+                    borderWidth: 1,
+                    borderColor: isDark ? "#374151" : "#E5E7EB",
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "700",
+                        color: isDark ? "#D1D5DB" : "#374151",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      Select from Menu
+                    </Text>
+                    <Pressable onPress={() => setShowPicker(false)}>
+                      <Ionicons
+                        name="close-circle-outline"
+                        size={18}
+                        color={isDark ? "#6B7280" : "#9CA3AF"}
+                      />
+                    </Pressable>
+                  </View>
+                  <ProductPicker
+                    products={products}
+                    onAdd={handleAddFromPicker}
+                    isDark={isDark}
+                  />
+                </View>
+              )}
+
+              {/* ── Updated Totals Preview ── */}
+              <View
+                style={{
+                  backgroundColor: isDark ? "#1F2937" : "#F9FAFB",
+                  borderRadius: 12,
+                  padding: 14,
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#E5E7EB",
+                  marginBottom: 4,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "700",
+                    color: isDark ? "#6B7280" : "#9CA3AF",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                    marginBottom: 10,
+                  }}
+                >
+                  Updated Totals Preview
                 </Text>
-                <Text className="text-blue-600 dark:text-blue-400 font-black text-base">
-                  {fmt(previewTotals.total)}
-                </Text>
+                {[
+                  { label: "Subtotal", value: previewTotals.subtotal },
+                  { label: "Tax (12%)", value: previewTotals.tax },
+                ].map(({ label, value }) => (
+                  <View
+                    key={label}
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: isDark ? "#9CA3AF" : "#6B7280",
+                      }}
+                    >
+                      {label}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: isDark ? "#D1D5DB" : "#374151",
+                      }}
+                    >
+                      {fmt(value)}
+                    </Text>
+                  </View>
+                ))}
+                <View
+                  style={{
+                    height: 1,
+                    backgroundColor: isDark ? "#374151" : "#E5E7EB",
+                    marginVertical: 6,
+                  }}
+                />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "900",
+                      color: isDark ? "#fff" : "#111",
+                    }}
+                  >
+                    New Total
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "900",
+                      color: "#2563EB",
+                    }}
+                  >
+                    {fmt(previewTotals.total)}
+                  </Text>
+                </View>
               </View>
-            </View>
-          </ScrollView>
+            </ScrollView>
+          )}
 
           {/* Save Footer */}
           <View
-            className="px-4 py-4 border-t border-gray-100 dark:border-gray-800"
-            style={{ backgroundColor: isDark ? "#111827" : "#FFFFFF" }}
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderTopWidth: 1,
+              borderTopColor: isDark ? "#1F2937" : "#F3F4F6",
+              backgroundColor: isDark ? "#111827" : "#FFFFFF",
+            }}
           >
             <Pressable
               onPress={() => {
                 onSave(editItems);
                 onClose();
               }}
-              className="bg-blue-600 rounded-xl py-3.5 items-center"
+              style={{
+                backgroundColor: "#2563EB",
+                borderRadius: 12,
+                paddingVertical: 14,
+                alignItems: "center",
+              }}
             >
-              <Text className="text-white font-extrabold text-sm">
+              <Text style={{ color: "#fff", fontWeight: "800", fontSize: 14 }}>
                 Save Item Changes
               </Text>
             </Pressable>

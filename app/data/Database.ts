@@ -1,5 +1,5 @@
-import * as SQLite from "expo-sqlite";
 import * as Crypto from "expo-crypto";
+import * as SQLite from "expo-sqlite";
 
 // ─── UUID Helper ──────────────────────────────────────────────────────────────
 export function generateUUID(): string {
@@ -24,12 +24,15 @@ export async function getDeviceConfig(key: string): Promise<string | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ value: string }>(
     "SELECT value FROM device_config WHERE key = ?;",
-    key
+    key,
   );
   return row?.value ?? null;
 }
 
-export async function setDeviceConfig(key: string, value: string): Promise<void> {
+export async function setDeviceConfig(
+  key: string,
+  value: string,
+): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO device_config (key, value, updated_at)
@@ -37,7 +40,7 @@ export async function setDeviceConfig(key: string, value: string): Promise<void>
      ON CONFLICT(key) DO UPDATE SET value = excluded.value,
                                     updated_at = excluded.updated_at;`,
     key,
-    value
+    value,
   );
 }
 
@@ -46,11 +49,6 @@ export async function getTerminalId(): Promise<string> {
 }
 
 // ─── Migration type ───────────────────────────────────────────────────────────
-// Each migration is either a single SQL string OR an array of SQL strings.
-// When it's an array, each string is executed as its own execAsync call.
-// This is required for ALTER TABLE statements — expo-sqlite silently stops
-// executing after the first ALTER TABLE when multiple are batched in one string.
-
 type Migration = string | string[];
 
 // ─── Migrations ───────────────────────────────────────────────────────────────
@@ -161,15 +159,11 @@ const MIGRATIONS: Migration[] = [
   `ALTER TABLE Products ADD COLUMN image_uri TEXT`,
 
   // ── v6 — UUID + synced flags + sync infrastructure ───────────────────────
-  // Each statement is a separate string so expo-sqlite executes them one by one.
-  // Batching multiple ALTER TABLEs in a single execAsync silently fails.
   [
-    // Categories
     `ALTER TABLE Categories ADD COLUMN uuid   TEXT    NOT NULL DEFAULT ''`,
     `ALTER TABLE Categories ADD COLUMN synced INTEGER NOT NULL DEFAULT 0`,
     `UPDATE Categories SET uuid = lower(hex(randomblob(4))||'-'||hex(randomblob(2))||'-4'||substr(hex(randomblob(2)),2)||'-'||substr('89ab',abs(random()%4)+1,1)||substr(hex(randomblob(2)),2)||'-'||hex(randomblob(6))) WHERE uuid = ''`,
 
-    // Products
     `ALTER TABLE Products ADD COLUMN uuid              TEXT    NOT NULL DEFAULT ''`,
     `ALTER TABLE Products ADD COLUMN synced            INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE Products ADD COLUMN image_synced      INTEGER NOT NULL DEFAULT 0`,
@@ -177,23 +171,19 @@ const MIGRATIONS: Migration[] = [
     `UPDATE Products SET uuid = lower(hex(randomblob(4))||'-'||hex(randomblob(2))||'-4'||substr(hex(randomblob(2)),2)||'-'||substr('89ab',abs(random()%4)+1,1)||substr(hex(randomblob(2)),2)||'-'||hex(randomblob(6))) WHERE uuid = ''`,
     `UPDATE Products SET image_synced = 1 WHERE image_uri IS NULL`,
 
-    // ProductVariants
     `ALTER TABLE ProductVariants ADD COLUMN uuid   TEXT    NOT NULL DEFAULT ''`,
     `ALTER TABLE ProductVariants ADD COLUMN synced INTEGER NOT NULL DEFAULT 0`,
     `UPDATE ProductVariants SET uuid = lower(hex(randomblob(4))||'-'||hex(randomblob(2))||'-4'||substr(hex(randomblob(2)),2)||'-'||substr('89ab',abs(random()%4)+1,1)||substr(hex(randomblob(2)),2)||'-'||hex(randomblob(6))) WHERE uuid = ''`,
 
-    // Orders
     `ALTER TABLE Orders ADD COLUMN uuid        TEXT    NOT NULL DEFAULT ''`,
     `ALTER TABLE Orders ADD COLUMN synced      INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE Orders ADD COLUMN terminal_id TEXT    NOT NULL DEFAULT 'terminal-1'`,
     `UPDATE Orders SET uuid = lower(hex(randomblob(4))||'-'||hex(randomblob(2))||'-4'||substr(hex(randomblob(2)),2)||'-'||substr('89ab',abs(random()%4)+1,1)||substr(hex(randomblob(2)),2)||'-'||hex(randomblob(6))) WHERE uuid = ''`,
 
-    // OrderItems
     `ALTER TABLE OrderItems ADD COLUMN uuid   TEXT    NOT NULL DEFAULT ''`,
     `ALTER TABLE OrderItems ADD COLUMN synced INTEGER NOT NULL DEFAULT 0`,
     `UPDATE OrderItems SET uuid = lower(hex(randomblob(4))||'-'||hex(randomblob(2))||'-4'||substr(hex(randomblob(2)),2)||'-'||substr('89ab',abs(random()%4)+1,1)||substr(hex(randomblob(2)),2)||'-'||hex(randomblob(6))) WHERE uuid = ''`,
 
-    // sync_errors table
     `CREATE TABLE IF NOT EXISTS sync_errors (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       table_name   TEXT    NOT NULL,
@@ -205,18 +195,15 @@ const MIGRATIONS: Migration[] = [
       resolved     INTEGER NOT NULL DEFAULT 0
     )`,
 
-    // device_config table
     `CREATE TABLE IF NOT EXISTS device_config (
       key        TEXT PRIMARY KEY,
       value      TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )`,
 
-    // Seed device config
     `INSERT OR IGNORE INTO device_config (key, value) VALUES ('terminal_uuid', lower(hex(randomblob(4))||'-'||hex(randomblob(2))||'-4'||substr(hex(randomblob(2)),2)||'-'||substr('89ab',abs(random()%4)+1,1)||substr(hex(randomblob(2)),2)||'-'||hex(randomblob(6))))`,
     `INSERT OR IGNORE INTO device_config (key, value) VALUES ('api_base_url', 'https://frank-loui-lapore-hp-probook-640-g1.tail11c2e9.ts.net')`,
 
-    // Indexes
     `CREATE INDEX IF NOT EXISTS idx_orders_synced          ON Orders(synced)`,
     `CREATE INDEX IF NOT EXISTS idx_orderitems_synced      ON OrderItems(synced)`,
     `CREATE INDEX IF NOT EXISTS idx_products_synced        ON Products(synced)`,
@@ -233,9 +220,6 @@ const MIGRATIONS: Migration[] = [
 ];
 
 // ─── Migrations Runner ────────────────────────────────────────────────────────
-// Handles both single-string and array-of-strings migrations.
-// Arrays are executed statement-by-statement to work around expo-sqlite's
-// limitation with multiple ALTER TABLE statements in one execAsync call.
 
 export async function runMigrations(): Promise<void> {
   const db = await getDb();
@@ -248,7 +232,7 @@ export async function runMigrations(): Promise<void> {
   `);
 
   const rows = await db.getAllAsync<{ version: number }>(
-    "SELECT version FROM _migrations ORDER BY version;"
+    "SELECT version FROM _migrations ORDER BY version;",
   );
   const appliedVersions = new Set(rows.map((r) => r.version));
 
@@ -260,7 +244,6 @@ export async function runMigrations(): Promise<void> {
 
     await db.withTransactionAsync(async () => {
       if (Array.isArray(migration)) {
-        // Execute each statement individually
         for (const sql of migration) {
           await db.execAsync(sql);
         }
@@ -269,7 +252,7 @@ export async function runMigrations(): Promise<void> {
       }
       await db.runAsync(
         "INSERT INTO _migrations (version) VALUES (?);",
-        version
+        version,
       );
     });
 

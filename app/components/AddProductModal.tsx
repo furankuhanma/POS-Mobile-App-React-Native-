@@ -1,22 +1,22 @@
-import { useState, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImageManipulator from "expo-image-manipulator";
+import * as ImagePicker from "expo-image-picker";
+import { useColorScheme } from "nativewind";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
   Modal,
-  View,
-  Text,
-  TextInput,
+  Platform,
   Pressable,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  Alert,
-  ActivityIndicator,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "nativewind";
-import * as ImagePicker from "expo-image-picker";
-import * as ImageManipulator from "expo-image-manipulator";
-import type { Product, Category } from "../types/inventory";
+import type { Category, Product } from "../types/inventory";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,20 +31,18 @@ interface AddProductModalProps {
 interface VariantInput {
   id: string;
   name: string;
-  additionalPrice: string;
+  sellingPrice: string; // direct selling price — no longer a delta
 }
 
 // ─── Image Compression ────────────────────────────────────────────────────────
-// Converts any picked image to a compressed JPEG regardless of source format.
-// Falls back to the original URI if manipulation fails so the user is never blocked.
 
 async function compressToJpeg(uri: string): Promise<string> {
   try {
     const result = await ImageManipulator.manipulateAsync(
       uri,
-      [{ resize: { width: 800 } }], // cap width to 800px, height scales proportionally
+      [{ resize: { width: 800 } }],
       {
-        compress: 0.75, // 75% quality — good balance of size vs clarity
+        compress: 0.75,
         format: ImageManipulator.SaveFormat.JPEG,
       },
     );
@@ -54,7 +52,7 @@ async function compressToJpeg(uri: string): Promise<string> {
       "[AddProductModal] image compression failed, using original:",
       e,
     );
-    return uri; // fallback — still works, just uncompressed
+    return uri;
   }
 }
 
@@ -75,11 +73,10 @@ export function AddProductModal({
   const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [costPrice, setCostPrice] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [variants, setVariants] = useState<VariantInput[]>([]);
   const [showVariants, setShowVariants] = useState(false);
-  const [compressing, setCompressing] = useState(false); // shows spinner while compressing
+  const [compressing, setCompressing] = useState(false);
 
   // ─── Effects ────────────────────────────────────────────────────────────────
 
@@ -89,7 +86,6 @@ export function AddProductModal({
       setDescription(editProduct.description || "");
       setImage(editProduct.image || "");
       setCategoryId(editProduct.categoryId);
-      setCostPrice(editProduct.costPrice.toString());
       setSellingPrice(editProduct.sellingPrice.toString());
 
       if (editProduct.variants && editProduct.variants.length > 0) {
@@ -98,7 +94,11 @@ export function AddProductModal({
           editProduct.variants.map((v) => ({
             id: v.id,
             name: v.name,
-            additionalPrice: v.additionalPrice.toString(),
+            // additionalPrice in the type is the delta stored in inventory layer;
+            // actual DB price = base sellingPrice + additionalPrice
+            sellingPrice: (
+              editProduct.sellingPrice + v.additionalPrice
+            ).toString(),
           })),
         );
       } else {
@@ -136,7 +136,6 @@ export function AddProductModal({
     return true;
   };
 
-  // ── Core: pick image then compress it ──────────────────────────────────────
   const processImage = async (uri: string) => {
     setCompressing(true);
     try {
@@ -154,7 +153,7 @@ export function AddProductModal({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 1, // pick full quality — we compress ourselves below
+      quality: 1,
     });
     if (!result.canceled && result.assets[0]) {
       await processImage(result.assets[0].uri);
@@ -168,7 +167,7 @@ export function AddProductModal({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 1, // pick full quality — we compress ourselves below
+      quality: 1,
     });
     if (!result.canceled && result.assets[0]) {
       await processImage(result.assets[0].uri);
@@ -201,29 +200,32 @@ export function AddProductModal({
     setDescription("");
     setImage("");
     setCategoryId("");
-    setCostPrice("");
     setSellingPrice("");
     setVariants([]);
     setShowVariants(false);
   };
 
   const handleSave = () => {
-    if (!name || !categoryId || !costPrice || !sellingPrice) return;
+    if (!name || !categoryId || !sellingPrice) return;
+
+    const basePrice = parseFloat(sellingPrice);
 
     const productData: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
       name,
       description: description || undefined,
-      image: image || undefined, // ✅ compressed JPEG URI passed through to InventoryScreen → DB
+      image: image || undefined,
       categoryId,
-      costPrice: parseFloat(costPrice),
-      sellingPrice: parseFloat(sellingPrice),
+      costPrice: 0, // removed from UI — kept in type as 0
+      sellingPrice: basePrice,
       isArchived: false,
       variants:
         showVariants && variants.length > 0
           ? variants.map((v) => ({
               id: v.id || `var-${Date.now()}-${Math.random()}`,
               name: v.name,
-              additionalPrice: parseFloat(v.additionalPrice) || 0,
+              // Store as delta so existing InventoryScreen logic keeps working.
+              // delta = variant's own price − base selling price
+              additionalPrice: (parseFloat(v.sellingPrice) || 0) - basePrice,
             }))
           : undefined,
     };
@@ -235,7 +237,7 @@ export function AddProductModal({
   const addVariant = () => {
     setVariants([
       ...variants,
-      { id: `temp-${Date.now()}`, name: "", additionalPrice: "0" },
+      { id: `temp-${Date.now()}`, name: "", sellingPrice: sellingPrice || "0" },
     ]);
   };
 
@@ -291,7 +293,6 @@ export function AddProductModal({
               <View className="mb-5 items-center">
                 <Pressable onPress={handleImagePress} className="items-center">
                   {compressing ? (
-                    // Spinner shown while compressing
                     <View className="w-28 h-28 rounded-2xl bg-gray-100 dark:bg-gray-800 items-center justify-center">
                       <ActivityIndicator
                         color={isDark ? "#60A5FA" : "#2563EB"}
@@ -371,7 +372,6 @@ export function AddProductModal({
                   )}
                 </View>
 
-                {/* Format hint */}
                 <Text className="text-gray-400 dark:text-gray-600 text-xs mt-2">
                   Any image format • auto-converted to JPEG
                 </Text>
@@ -437,34 +437,21 @@ export function AddProductModal({
                 </ScrollView>
               </View>
 
-              {/* Pricing Row */}
-              <View className="flex-row gap-3 mb-4">
-                <View className="flex-1">
-                  <Text className="text-gray-700 dark:text-gray-300 font-bold text-sm mb-2">
-                    Cost Price *
-                  </Text>
-                  <TextInput
-                    value={costPrice}
-                    onChangeText={setCostPrice}
-                    placeholder="0.00"
-                    keyboardType="decimal-pad"
-                    placeholderTextColor={isDark ? "#6B7280" : "#9CA3AF"}
-                    className="bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 text-gray-900 dark:text-white"
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-gray-700 dark:text-gray-300 font-bold text-sm mb-2">
-                    Selling Price *
-                  </Text>
-                  <TextInput
-                    value={sellingPrice}
-                    onChangeText={setSellingPrice}
-                    placeholder="0.00"
-                    keyboardType="decimal-pad"
-                    placeholderTextColor={isDark ? "#6B7280" : "#9CA3AF"}
-                    className="bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 text-gray-900 dark:text-white"
-                  />
-                </View>
+              {/* Selling Price — only shown when no variants, or as base reference */}
+              <View className="mb-4">
+                <Text className="text-gray-700 dark:text-gray-300 font-bold text-sm mb-2">
+                  {showVariants && variants.length > 0
+                    ? "Base Selling Price * (used as fallback)"
+                    : "Selling Price *"}
+                </Text>
+                <TextInput
+                  value={sellingPrice}
+                  onChangeText={setSellingPrice}
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={isDark ? "#6B7280" : "#9CA3AF"}
+                  className="bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 text-gray-900 dark:text-white"
+                />
               </View>
 
               {/* Variants Section */}
@@ -502,6 +489,8 @@ export function AddProductModal({
                             />
                           </Pressable>
                         </View>
+
+                        {/* Variant Name */}
                         <TextInput
                           value={variant.name}
                           onChangeText={(v) => updateVariant(index, "name", v)}
@@ -509,16 +498,25 @@ export function AddProductModal({
                           placeholderTextColor={isDark ? "#6B7280" : "#9CA3AF"}
                           className="bg-white dark:bg-gray-900 rounded-lg px-3 py-2 text-gray-900 dark:text-white mb-2 text-sm"
                         />
-                        <TextInput
-                          value={variant.additionalPrice}
-                          onChangeText={(v) =>
-                            updateVariant(index, "additionalPrice", v)
-                          }
-                          placeholder="Additional price (e.g., +20)"
-                          keyboardType="decimal-pad"
-                          placeholderTextColor={isDark ? "#6B7280" : "#9CA3AF"}
-                          className="bg-white dark:bg-gray-900 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm"
-                        />
+
+                        {/* Variant Selling Price — direct input */}
+                        <View>
+                          <Text className="text-gray-500 dark:text-gray-400 text-xs mb-1 ml-1">
+                            Selling Price
+                          </Text>
+                          <TextInput
+                            value={variant.sellingPrice}
+                            onChangeText={(v) =>
+                              updateVariant(index, "sellingPrice", v)
+                            }
+                            placeholder="0.00"
+                            keyboardType="decimal-pad"
+                            placeholderTextColor={
+                              isDark ? "#6B7280" : "#9CA3AF"
+                            }
+                            className="bg-white dark:bg-gray-900 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm"
+                          />
+                        </View>
                       </View>
                     ))}
 

@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Modal,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -12,9 +14,9 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { CartItem, CheckoutModal } from "../components/CheckoutModal";
 import { productsRepo } from "../data/Products";
-import type { ProductWithVariants, DbProductVariant } from "../types/types";
-import { CheckoutModal, CartItem } from "../components/CheckoutModal";
+import type { DbProductVariant, ProductWithVariants } from "../types/types";
 
 // ─── Success Toast ────────────────────────────────────────────────────────────
 
@@ -111,6 +113,187 @@ function ProductImage({
   );
 }
 
+// ─── Variant Picker Modal ─────────────────────────────────────────────────────
+
+function VariantPickerModal({
+  product,
+  visible,
+  onClose,
+  onSelect,
+  isDark,
+}: {
+  product: ProductWithVariants | null;
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (product: ProductWithVariants, variant: DbProductVariant) => void;
+  isDark: boolean;
+}) {
+  if (!product) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <Pressable
+        style={{
+          flex: 1,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          justifyContent: "flex-end",
+        }}
+        onPress={onClose}
+      >
+        {/* Sheet — stop propagation so tapping inside doesn't close */}
+        <Pressable
+          onPress={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: isDark ? "#111827" : "#ffffff",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingBottom: 32,
+          }}
+        >
+          {/* Handle */}
+          <View
+            style={{ alignItems: "center", paddingTop: 12, paddingBottom: 4 }}
+          >
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: isDark ? "#374151" : "#E5E7EB",
+              }}
+            />
+          </View>
+
+          {/* Header */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingHorizontal: 20,
+              paddingVertical: 12,
+              borderBottomWidth: 1,
+              borderBottomColor: isDark ? "#1F2937" : "#F3F4F6",
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "800",
+                  color: isDark ? "#ffffff" : "#111827",
+                }}
+                numberOfLines={1}
+              >
+                {product.name}
+              </Text>
+              <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>
+                Select a variant to add
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+              <Ionicons
+                name="close"
+                size={22}
+                color={isDark ? "#9CA3AF" : "#6B7280"}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Product image (optional visual) */}
+          {product.image_uri ? (
+            <View style={{ alignItems: "center", paddingVertical: 16 }}>
+              <Image
+                source={{ uri: product.image_uri }}
+                style={{ width: 80, height: 80, borderRadius: 16 }}
+                resizeMode="cover"
+              />
+            </View>
+          ) : (
+            <View style={{ height: 12 }} />
+          )}
+
+          {/* Variant list */}
+          <ScrollView
+            style={{ maxHeight: 320 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {product.variants.map((variant) => (
+              <TouchableOpacity
+                key={variant.id}
+                onPress={() => {
+                  onSelect(product, variant);
+                  onClose();
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  backgroundColor: isDark ? "#1F2937" : "#F9FAFB",
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#E5E7EB",
+                  borderRadius: 14,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  marginBottom: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "700",
+                    color: isDark ? "#F3F4F6" : "#111827",
+                    flex: 1,
+                  }}
+                >
+                  {variant.variant_name}
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "800",
+                      color: "#16A34A",
+                    }}
+                  >
+                    ₱{variant.price.toFixed(2)}
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: "#22C55E",
+                      borderRadius: 8,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                    }}
+                  >
+                    <Text
+                      style={{ fontSize: 12, fontWeight: "700", color: "#fff" }}
+                    >
+                      Add
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ProductScreen() {
@@ -132,6 +315,10 @@ export default function ProductScreen() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
+
+  // ── Variant picker state ─────────────────────────────────────────────────
+  const [variantPickerProduct, setVariantPickerProduct] =
+    useState<ProductWithVariants | null>(null);
 
   // ── Load products from DB ────────────────────────────────────────────────
   const loadProducts = useCallback(async () => {
@@ -199,10 +386,18 @@ export default function ProductScreen() {
     });
   };
 
+  // ── Product press: show picker if multiple variants, else add directly ───
   const handleProductPress = (product: ProductWithVariants) => {
     if (selectionMode) return;
-    const variant = product.variants[0] ?? null;
-    addToCart(product, variant);
+
+    if (product.variants.length > 1) {
+      // Open variant picker sheet
+      setVariantPickerProduct(product);
+    } else {
+      // Single or no variant — add directly as before
+      const variant = product.variants[0] ?? null;
+      addToCart(product, variant);
+    }
   };
 
   const updateQty = (key: string, delta: number) => {
@@ -383,6 +578,7 @@ export default function ProductScreen() {
                   {filtered.map((product) => {
                     const defaultVariant = product.variants[0] ?? null;
                     const displayPrice = defaultVariant?.price ?? 0;
+                    const hasMultipleVariants = product.variants.length > 1;
 
                     return (
                       <TouchableOpacity
@@ -416,19 +612,31 @@ export default function ProductScreen() {
                         >
                           {product.name}
                         </Text>
-                        {product.variants.length > 1 && (
-                          <Text
+
+                        {/* Variant hint — tappable indicator */}
+                        {hasMultipleVariants ? (
+                          <View
                             style={{
-                              fontSize: 9,
-                              color: "#9CA3AF",
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 3,
                               marginBottom: 2,
                             }}
                           >
-                            {product.variants.length} variants
-                          </Text>
-                        )}
+                            <Ionicons
+                              name="layers-outline"
+                              size={10}
+                              color="#9CA3AF"
+                            />
+                            <Text style={{ fontSize: 9, color: "#9CA3AF" }}>
+                              {product.variants.length} variants — tap to choose
+                            </Text>
+                          </View>
+                        ) : null}
+
                         <Text style={{ fontWeight: "700", color: "#15803D" }}>
-                          ₱{displayPrice.toFixed(2)}
+                          {hasMultipleVariants ? "from " : ""}₱
+                          {displayPrice.toFixed(2)}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -796,6 +1004,15 @@ export default function ProductScreen() {
           </View>
         </View>
       </View>
+
+      {/* ── Variant Picker Sheet ── */}
+      <VariantPickerModal
+        product={variantPickerProduct}
+        visible={variantPickerProduct !== null}
+        onClose={() => setVariantPickerProduct(null)}
+        onSelect={(product, variant) => addToCart(product, variant)}
+        isDark={isDark}
+      />
 
       {/* ── Checkout Modal ── */}
       <CheckoutModal

@@ -1,10 +1,10 @@
-import { Pressable, View, Text } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { StatusBadge } from "./StatusBadge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type OrderType = "dine-in" | "takeout" | "delivery";
-type PaymentMethod = "Cash" | "Card" | "E-wallet";
+type OrderType = "dine-in" | "takeout"; // delivery removed
+type PaymentMethod = "Cash" | "Card"; // E-wallet removed
 type PaymentStatus = "Paid" | "Unpaid" | "Refunded";
 type OrderStatus = "Preparing" | "Served" | "Done" | "Cancelled";
 
@@ -40,7 +40,6 @@ interface Order {
   completedAt?: string;
   cashTendered?: number;
   statusLog: StatusLog[];
-  /** Internal: numeric SQLite row id — used by the DB layer only */
   _dbId?: number;
 }
 
@@ -49,7 +48,6 @@ interface Order {
 const ORDER_TYPE_ICON: Record<OrderType, string> = {
   "dine-in": "🍽",
   takeout: "🥡",
-  delivery: "🛵",
 };
 
 const ORDER_STATUS_CLS: Record<OrderStatus, string> = {
@@ -147,23 +145,24 @@ export function OrderRow({ order, onPress }: OrderRowProps) {
   );
 }
 
-// Export types for use in other components
+// ─── Exports ──────────────────────────────────────────────────────────────────
+
 export type {
   Order,
   OrderItem,
-  OrderType,
   OrderStatus,
+  OrderType,
   PaymentMethod,
   PaymentStatus,
   StatusLog,
 };
 
 export {
-  ORDER_TYPE_ICON,
-  ORDER_STATUS_CLS,
-  ORDER_STATUS_TEXT_CLS,
-  PAYMENT_STATUS_CLS,
-  PAYMENT_STATUS_TEXT_CLS,
   fmt,
   fmtTime,
+  ORDER_STATUS_CLS,
+  ORDER_STATUS_TEXT_CLS,
+  ORDER_TYPE_ICON,
+  PAYMENT_STATUS_CLS,
+  PAYMENT_STATUS_TEXT_CLS,
 };
